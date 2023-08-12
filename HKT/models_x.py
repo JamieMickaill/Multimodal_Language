@@ -305,7 +305,7 @@ class HKT(nn.Module):
         visual_params=list(self.visual_model.named_parameters())
         hcf_params=list(self.hcf_model.named_parameters())
         
-        other_params=list(self.text_model.named_parameters())+list(self.text_audio_cross_attention.named_parameters())+list(self.text_visual_cross_attention.named_parameters())+list(self.audio_visual_cross_attention.named_parameters())+list(self.fc.named_parameters())
+        other_params=list(self.text_model.named_parameters())+list(self.text_audio_cross_attention.named_parameters())+list(self.text_visual_cross_attention.named_parameters())+list(self.audio_visual_cross_attention.named_parameters())+list(self.fusion_fc.named_parameters())
         
         return acoustic_params,visual_params,hcf_params,other_params
     
@@ -340,7 +340,7 @@ class HKT(nn.Module):
         fusion = (text_embedding, visual_embedding, acoustic_embedding,text_audio_embedding,text_visual_embedding,audio_visual_embedding)
         fused_hidden = torch.cat(fusion, dim=1)
         
-        out = self.fc(fused_hidden)
+        out = self.fusion_fc(fused_hidden)
         
         return (out, fused_hidden)
 
