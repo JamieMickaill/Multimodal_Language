@@ -36,7 +36,7 @@ from transformers import (
     BertTokenizer,
     get_linear_schedule_with_warmup,
 )
-from models_x_single import *
+from models_x_single_self import *
 from transformers.optimization import AdamW
 
 
