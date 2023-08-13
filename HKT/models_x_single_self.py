@@ -303,7 +303,7 @@ class HKT(nn.Module):
         visual_params=list(self.visual_model.named_parameters())
         hcf_params=list(self.hcf_model.named_parameters())
         
-        other_params=list(self.text_model.named_parameters())+list(self.text_audio_cross_attention.named_parameters())+list(self.text_visual_cross_attention.named_parameters())+list(self.audio_visual_cross_attention.named_parameters())+list(self.fusion_fc.named_parameters())
+        other_params=list(self.text_model.named_parameters())+list(self.self_cross_attention.named_parameters())+list(self.fusion_fc.named_parameters())
         
         return acoustic_params,visual_params,hcf_params,other_params
     
