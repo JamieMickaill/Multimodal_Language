@@ -286,7 +286,7 @@ class HKT(nn.Module):
         self.acoustic_model = acoustic_model
         self.hcf_model = hcf_model
         
-        self.self_cross_attention = CrossAttentionLayer(LANGUAGE_DIM+HCF_DIM+ACOUSTIC_DIM+VISUAL_DIM, ACOUSTIC_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        self.self_cross_attention = CrossAttentionLayer(LANGUAGE_DIM+HCF_DIM+ACOUSTIC_DIM+VISUAL_DIM,LANGUAGE_DIM+HCF_DIM+ACOUSTIC_DIM+VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
 
         #total dim is 2* VATH, V,A,T,H
         total_dim =  3*(LANGUAGE_DIM+HCF_DIM) + 3*(VISUAL_DIM) + 3*(ACOUSTIC_DIM) 
