@@ -274,45 +274,41 @@ class HKTMultiLayerCrossAttn(nn.Module):
 
 
 
-#Single fusion transformer takes raw inputs
-#linear transform to BERT dimension and use bert encoder (sequential)
-# [text_i + pos_i, text_j + pos_j, [sep], vision_i + pos_i , vision_j +  pos_j , [sep], audio_i  pos_i , audio_j  pos_j ]
+#Single layer x-attn between AV VT AT
+
 class HKT(nn.Module):
     def __init__(self, text_model, visual_model, acoustic_model, hcf_model, args, dropout=0.1, fusion_dim=128):
         super(HKT, self).__init__()
         
         self.newly_added_config=args
-        self.multimodal_text_model = text_model
-        self.projection_audio =  nn.Linear(in_features=ACOUSTIC_DIM, out_features=768)
-        self.projection_visual =  nn.Linear(in_features=VISUAL_DIM, out_features=768)
-
-
-        # self.visual_model = visual_model
-        # self.acoustic_model = acoustic_model
-        # self.hcf_model = hcf_model
+        self.text_model = text_model
+        self.visual_model = visual_model
+        self.acoustic_model = acoustic_model
+        self.hcf_model = hcf_model
         
-        # self.text_audio_cross_attention = CrossAttentionLayer(LANGUAGE_DIM+HCF_DIM, ACOUSTIC_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
-        # self.text_visual_cross_attention = CrossAttentionLayer(LANGUAGE_DIM+HCF_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
-        # self.audio_visual_cross_attention = CrossAttentionLayer(ACOUSTIC_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        self.text_audio_cross_attention = CrossAttentionLayer(LANGUAGE_DIM+HCF_DIM, ACOUSTIC_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        self.text_visual_cross_attention = CrossAttentionLayer(LANGUAGE_DIM+HCF_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        self.audio_visual_cross_attention = CrossAttentionLayer(ACOUSTIC_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
         
         #total dim is VA, V(TH), A(TH), V,A,T,H
-        total_dim =  LANGUAGE_DIM 
+        total_dim =  3*(LANGUAGE_DIM+HCF_DIM) + 3*(VISUAL_DIM) + 3*(ACOUSTIC_DIM) 
 
         self.fusion_fc = nn.Sequential(nn.Linear(total_dim, args.fusion_dim), 
                                        nn.ReLU(), 
                                        nn.Dropout(args.dropout), 
                                        nn.Linear(args.fusion_dim, 1))
 
-    #TODO: Update get_params for text only or use text-only input flag? *****
+    #returns separate params for shared cross-modal encoder and text-encoder
     def get_params(self):
         
-        # acoustic_params=list(self.acoustic_model.named_parameters())
-        # visual_params=list(self.visual_model.named_parameters())
-        # hcf_params=list(self.hcf_model.named_parameters())
+        acoustic_params=list(self.acoustic_model.named_parameters())
+        visual_params=list(self.visual_model.named_parameters())
+        hcf_params=list(self.hcf_model.named_parameters())
+        text_params = list(self.text_model.named_parameters())
         
-        other_params=list(self.text_model.named_parameters())+list(self.fusion_fc.named_parameters())
+        other_params=list(self.text_audio_cross_attention.named_parameters())+list(self.text_visual_cross_attention.named_parameters())+list(self.audio_visual_cross_attention.named_parameters())+list(self.fusion_fc.named_parameters())
         
-        return other_params
+        return acoustic_params,visual_params,text_params,hcf_params,other_params
     
     def forward(self, input_ids, visual, acoustic,hcf, attention_mask=None, token_type_ids=None):
         

@@ -274,55 +274,45 @@ class HKTMultiLayerCrossAttn(nn.Module):
 
 
 
-#Late fusion of unimodal predictions
-
+#Single fusion transformer takes raw inputs
+#linear transform to BERT dimension and use bert encoder (sequential)
+# [text_i + pos_i, text_j + pos_j, [sep], vision_i + pos_i , vision_j +  pos_j , [sep], audio_i  pos_i , audio_j  pos_j ]
 class HKT(nn.Module):
     def __init__(self, text_model, visual_model, acoustic_model, hcf_model, args, dropout=0.1, fusion_dim=128):
         super(HKT, self).__init__()
         
         self.newly_added_config=args
-        self.text_model = text_model
-        self.visual_model = visual_model
-        self.acoustic_model = acoustic_model
-        self.hcf_model = hcf_model
+        self.multimodal_text_model = text_model
+        self.projection_audio =  nn.Linear(in_features=ACOUSTIC_DIM, out_features=768)
+        self.projection_visual =  nn.Linear(in_features=VISUAL_DIM, out_features=768)
+
+
+        # self.visual_model = visual_model
+        # self.acoustic_model = acoustic_model
+        # self.hcf_model = hcf_model
         
         # self.text_audio_cross_attention = CrossAttentionLayer(LANGUAGE_DIM+HCF_DIM, ACOUSTIC_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
         # self.text_visual_cross_attention = CrossAttentionLayer(LANGUAGE_DIM+HCF_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
         # self.audio_visual_cross_attention = CrossAttentionLayer(ACOUSTIC_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
         
-        # Individual prediction layers for each modality
-        self.text_prediction = nn.Linear(LANGUAGE_DIM, 1)
-        self.visual_prediction = nn.Linear(VISUAL_DIM, 1)
-        self.acoustic_prediction = nn.Linear(ACOUSTIC_DIM, 1)
-        self.hcf_prediction = nn.Linear(HCF_DIM, 1)
-        
-        # Late fusion layer: Combine individual modality predictions
-        self.late_fusion_layer = nn.Sequential(
-            nn.Linear(4, args.fusion_dim),  # We are concatenating 4 predictions
-            nn.ReLU(),
-            nn.Dropout(dropout),
-            nn.Linear(args.fusion_dim, 1)
-        )
-        
-        # #total dim is VA, V(TH), A(TH), V,A,T,H
-        # total_dim =  3*(LANGUAGE_DIM+HCF_DIM) + 3*(VISUAL_DIM) + 3*(ACOUSTIC_DIM) 
+        #total dim is VA, V(TH), A(TH), V,A,T,H
+        total_dim =  LANGUAGE_DIM 
 
-        # self.fusion_fc = nn.Sequential(nn.Linear(total_dim, args.fusion_dim), 
-        #                                nn.ReLU(), 
-        #                                nn.Dropout(args.dropout), 
-        #                                nn.Linear(args.fusion_dim, 1))
+        self.fusion_fc = nn.Sequential(nn.Linear(total_dim, args.fusion_dim), 
+                                       nn.ReLU(), 
+                                       nn.Dropout(args.dropout), 
+                                       nn.Linear(args.fusion_dim, 1))
 
-
+    #TODO: Update get_params for text only or use text-only input flag? *****
     def get_params(self):
         
-        acoustic_params=list(self.acoustic_model.named_parameters())
-        visual_params=list(self.visual_model.named_parameters())
-        hcf_params=list(self.hcf_model.named_parameters())
-        text_params = list(self.text_model.named_parameters())
-        predict_params = list(self.text_prediction.named_parameters(),self.visual_prediction.named_parameters(),self.acoustic_prediction.named_parameters(),self.hcf_prediction.named_parameters())
-        other_params=list(self.late_fusion_layer.named_parameters())
+        # acoustic_params=list(self.acoustic_model.named_parameters())
+        # visual_params=list(self.visual_model.named_parameters())
+        # hcf_params=list(self.hcf_model.named_parameters())
         
-        return acoustic_params,visual_params,text_params,hcf_params,predict_params,other_params
+        other_params=list(self.text_model.named_parameters())+list(self.fusion_fc.named_parameters())
+        
+        return other_params
     
     def forward(self, input_ids, visual, acoustic,hcf, attention_mask=None, token_type_ids=None):
         
@@ -332,46 +322,32 @@ class HKT(nn.Module):
         (_, _, hcf_output) = self.hcf_model(hcf)
         
         
-        # text_hcf=torch.cat((text_output,hcf_output),dim=2)
+        text_hcf=torch.cat((text_output,hcf_output),dim=2)
         
-        # # attention mask conversion
-        # extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
-        # extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
-        # extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
+        # attention mask conversion
+        extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
+        extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
+        extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
         
-        # text_audio_comb = self.text_audio_cross_attention(text_hcf, acoustic_output, attention_mask=extended_attention_mask)
-        # text_visual_comb = self.text_visual_cross_attention(text_hcf, visual_output, attention_mask=extended_attention_mask)
-        # audio_visual_comb = self.audio_visual_cross_attention(acoustic_output, visual_output, attention_mask=extended_attention_mask)
+        text_audio_comb = self.text_audio_cross_attention(text_hcf, acoustic_output, attention_mask=extended_attention_mask)
+        text_visual_comb = self.text_visual_cross_attention(text_hcf, visual_output, attention_mask=extended_attention_mask)
+        audio_visual_comb = self.audio_visual_cross_attention(acoustic_output, visual_output, attention_mask=extended_attention_mask)
 
-        # # Extract embeddings
-        # text_embedding = text_hcf[:,0,:] # [CLS] token
-        # visual_embedding = F.max_pool1d(visual_output.permute(0,2,1).contiguous(), visual_output.shape[1]).squeeze(-1)
-        # acoustic_embedding = F.max_pool1d(acoustic_output.permute(0,2,1).contiguous(),acoustic_output.shape[1]).squeeze(-1)
+        # Extract embeddings
+        text_embedding = text_hcf[:,0,:] # [CLS] token
+        visual_embedding = F.max_pool1d(visual_output.permute(0,2,1).contiguous(), visual_output.shape[1]).squeeze(-1)
+        acoustic_embedding = F.max_pool1d(acoustic_output.permute(0,2,1).contiguous(),acoustic_output.shape[1]).squeeze(-1)
         
-        # text_audio_embedding = F.max_pool1d(text_audio_comb.permute(0,2,1).contiguous(), text_audio_comb.shape[1]).squeeze(-1) 
-        # text_visual_embedding = F.max_pool1d(text_visual_comb.permute(0,2,1).contiguous(),text_visual_comb.shape[1]).squeeze(-1)
-        # audio_visual_embedding = F.max_pool1d(audio_visual_comb.permute(0,2,1).contiguous(),audio_visual_comb.shape[1]).squeeze(-1)
+        text_audio_embedding = F.max_pool1d(text_audio_comb.permute(0,2,1).contiguous(), text_audio_comb.shape[1]).squeeze(-1) 
+        text_visual_embedding = F.max_pool1d(text_visual_comb.permute(0,2,1).contiguous(),text_visual_comb.shape[1]).squeeze(-1)
+        audio_visual_embedding = F.max_pool1d(audio_visual_comb.permute(0,2,1).contiguous(),audio_visual_comb.shape[1]).squeeze(-1)
         
-        # fusion = (text_embedding, visual_embedding, acoustic_embedding,text_audio_embedding,text_visual_embedding,audio_visual_embedding)
-        # fused_hidden = torch.cat(fusion, dim=1)
+        fusion = (text_embedding, visual_embedding, acoustic_embedding,text_audio_embedding,text_visual_embedding,audio_visual_embedding)
+        fused_hidden = torch.cat(fusion, dim=1)
         
-        # out = self.fusion_fc(fused_hidden)
-
-        # Get individual predictions (CLS token from each -> 1D)
-        text_pred = self.visual_prediction(text_output[:,0,:])
-        visual_pred = self.visual_prediction(visual_output[0])
-        acoustic_pred = self.acoustic_prediction(acoustic_output[0])
-        hcf_pred = self.hcf_prediction(hcf_output[0])
+        out = self.fusion_fc(fused_hidden)
         
-        # Concatenate individual predictions
-        concatenated_predictions = torch.cat((text_pred, visual_pred, acoustic_pred, hcf_pred), dim=1)
-        
-        # Get final prediction through the late fusion layer
-        final_prediction = self.late_fusion_layer(concatenated_predictions)
-        
-        return (final_prediction,concatenated_predictions)
-        
-        # return (out, fused_hidden)
+        return (out, fused_hidden)
 
 
 

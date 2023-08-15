@@ -36,7 +36,7 @@ from transformers import (
     BertTokenizer,
     get_linear_schedule_with_warmup,
 )
-from models_x import *
+from models_x_LR_edit import *
 from transformers.optimization import AdamW
 
 
@@ -62,6 +62,7 @@ parser.add_argument("--epochs", type=int, default=20)
 parser.add_argument("--seed", type=int, default=100)
 
 parser.add_argument("--learning_rate", type=float, default=0.000005)
+parser.add_argument("--learning_rate_t", type=float, default=0.000005)
 parser.add_argument("--learning_rate_a", type=float, default=0.003)
 parser.add_argument("--learning_rate_h", type=float, default=0.0003)
 parser.add_argument("--learning_rate_v", type=float, default=0.003)
@@ -673,10 +674,11 @@ def prep_for_training(num_training_steps):
     
     if args.model == "HKT" :
         
-        acoustic_params,visual_params,hcf_params,other_params = model.get_params()
+        acoustic_params,visual_params,text_params,hcf_params,other_params = model.get_params()
         optimizer_o,scheduler_o=get_optimizer_scheduler(other_params,num_training_steps,learning_rate=args.learning_rate)
         optimizer_h,scheduler_h=get_optimizer_scheduler(hcf_params,num_training_steps,learning_rate=args.learning_rate_h)
         optimizer_v,scheduler_v=get_optimizer_scheduler(visual_params,num_training_steps,learning_rate=args.learning_rate_v)
+        optimizer_t,scheduler_t=get_optimizer_scheduler(text_params,num_training_steps,learning_rate=args.learning_rate_t)
         optimizer_a,scheduler_a=get_optimizer_scheduler(acoustic_params,num_training_steps,learning_rate=args.learning_rate_a)
         
         optimizers=[optimizer_o,optimizer_h,optimizer_v,optimizer_a]
