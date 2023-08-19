@@ -274,8 +274,7 @@ class HKTMultiLayerCrossAttn(nn.Module):
 
 
 
-#Single layer x-attn between AV VT AT
-
+#Single shared multimodal transformer (no x-attn)
 class HKT(nn.Module):
     def __init__(self, text_model, visual_model, acoustic_model, hcf_model, args, dropout=0.1, fusion_dim=128):
         super(HKT, self).__init__()
@@ -286,28 +285,28 @@ class HKT(nn.Module):
         self.acoustic_model = acoustic_model
         self.hcf_model = hcf_model
         
-        self.text_audio_cross_attention = CrossAttentionLayer(LANGUAGE_DIM+HCF_DIM, ACOUSTIC_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
-        self.text_visual_cross_attention = CrossAttentionLayer(LANGUAGE_DIM+HCF_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
-        self.audio_visual_cross_attention = CrossAttentionLayer(ACOUSTIC_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        #concat vertically (can also project to transformer dimm and process individually)
+        self.shared_transformer = TransformerLayer(LANGUAGE_DIM+HCF_DIM+VISUAL_DIM+ACOUSTIC_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
         
-        #total dim is VA, V(TH), A(TH), V,A,T,H
-        total_dim =  3*(LANGUAGE_DIM+HCF_DIM) + 3*(VISUAL_DIM) + 3*(ACOUSTIC_DIM) 
+        #total dim is V,A,T,H, VATH
+        total_dim =  2*(LANGUAGE_DIM+HCF_DIM+VISUAL_DIM+ACOUSTIC_DIM)
 
         self.fusion_fc = nn.Sequential(nn.Linear(total_dim, args.fusion_dim), 
                                        nn.ReLU(), 
                                        nn.Dropout(args.dropout), 
                                        nn.Linear(args.fusion_dim, 1))
 
-
+    #returns separate params for shared cross-modal encoder and text-encoder
     def get_params(self):
         
         acoustic_params=list(self.acoustic_model.named_parameters())
         visual_params=list(self.visual_model.named_parameters())
         hcf_params=list(self.hcf_model.named_parameters())
+        text_params = list(self.text_model.named_parameters())
         
-        other_params=list(self.text_model.named_parameters())+list(self.text_audio_cross_attention.named_parameters())+list(self.text_visual_cross_attention.named_parameters())+list(self.audio_visual_cross_attention.named_parameters())+list(self.fusion_fc.named_parameters())
+        other_params=list(self.shared_transformer.named_parameters())+list(self.fusion_fc.named_parameters())
         
-        return acoustic_params,visual_params,hcf_params,other_params
+        return acoustic_params,visual_params,text_params,hcf_params,other_params
     
     def forward(self, input_ids, visual, acoustic,hcf, attention_mask=None, token_type_ids=None):
         
@@ -318,12 +317,14 @@ class HKT(nn.Module):
         
         
         text_hcf=torch.cat((text_output,hcf_output),dim=2)
+        all_featues_comb = torch.cat((text_output,hcf_output, visual_output,acoustic_output),dim=2)
         
         # attention mask conversion
         extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
         extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
         extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
         
+        all_features_comb = 
         text_audio_comb = self.text_audio_cross_attention(text_hcf, acoustic_output, attention_mask=extended_attention_mask)
         text_visual_comb = self.text_visual_cross_attention(text_hcf, visual_output, attention_mask=extended_attention_mask)
         audio_visual_comb = self.audio_visual_cross_attention(acoustic_output, visual_output, attention_mask=extended_attention_mask)
