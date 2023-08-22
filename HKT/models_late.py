@@ -358,7 +358,7 @@ class HKT(nn.Module):
         # out = self.fusion_fc(fused_hidden)
 
         # Get individual predictions (CLS token from each -> 1D)
-        text_pred = self.visual_prediction(text_output[:,0,:])
+        text_pred = self.text_prediction(text_output[:,0,:])
         visual_pred = self.visual_prediction(visual_output[0])
         acoustic_pred = self.acoustic_prediction(acoustic_output[0])
         hcf_pred = self.hcf_prediction(hcf_output[0])
