@@ -318,27 +318,20 @@ class HKT(nn.Module):
         
         text_hcf=torch.cat((text_output,hcf_output),dim=2)
         all_featues_comb = torch.cat((text_output,hcf_output, visual_output,acoustic_output),dim=2)
+        all_features_embedding = self.shared_transformer(all_featues_comb)
         
         # attention mask conversion
         extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
         extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
         extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
         
-        all_features_comb = 
-        text_audio_comb = self.text_audio_cross_attention(text_hcf, acoustic_output, attention_mask=extended_attention_mask)
-        text_visual_comb = self.text_visual_cross_attention(text_hcf, visual_output, attention_mask=extended_attention_mask)
-        audio_visual_comb = self.audio_visual_cross_attention(acoustic_output, visual_output, attention_mask=extended_attention_mask)
-
         # Extract embeddings
         text_embedding = text_hcf[:,0,:] # [CLS] token
         visual_embedding = F.max_pool1d(visual_output.permute(0,2,1).contiguous(), visual_output.shape[1]).squeeze(-1)
         acoustic_embedding = F.max_pool1d(acoustic_output.permute(0,2,1).contiguous(),acoustic_output.shape[1]).squeeze(-1)
-        
-        text_audio_embedding = F.max_pool1d(text_audio_comb.permute(0,2,1).contiguous(), text_audio_comb.shape[1]).squeeze(-1) 
-        text_visual_embedding = F.max_pool1d(text_visual_comb.permute(0,2,1).contiguous(),text_visual_comb.shape[1]).squeeze(-1)
-        audio_visual_embedding = F.max_pool1d(audio_visual_comb.permute(0,2,1).contiguous(),audio_visual_comb.shape[1]).squeeze(-1)
-        
-        fusion = (text_embedding, visual_embedding, acoustic_embedding,text_audio_embedding,text_visual_embedding,audio_visual_embedding)
+        all_embedding = F.max_pool1d(all_features_embedding.permute(0,2,1).contiguous(), all_features_embedding.shape[1]).squeeze(-1) 
+
+        fusion = (text_embedding, visual_embedding, acoustic_embedding,all_embedding)
         fused_hidden = torch.cat(fusion, dim=1)
         
         out = self.fusion_fc(fused_hidden)
