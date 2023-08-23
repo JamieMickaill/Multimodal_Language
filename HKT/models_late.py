@@ -364,6 +364,10 @@ class HKT(nn.Module):
         hcf_pred = self.hcf_prediction(hcf_output[0])
         
         # Concatenate individual predictions
+        print(text_output[:,0,:],visual_output[0],acoustic_output[0],hcf_output[0])
+        print(len(text_output[:,0,:]),len(visual_output[0]),len(acoustic_output[0]),len(hcf_output[0]))
+        print(LANGUAGE_DIM,VISUAL_DIM,ACOUSTIC_DIM,HCF_DIM)
+        print(text_pred, visual_pred, acoustic_pred, hcf_pred)
         concatenated_predictions = torch.cat((text_pred, visual_pred, acoustic_pred, hcf_pred), dim=1)
         
         # Get final prediction through the late fusion layer
