@@ -290,11 +290,10 @@ class HKT(nn.Module):
         # self.text_visual_cross_attention = CrossAttentionLayer(LANGUAGE_DIM+HCF_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
         # self.audio_visual_cross_attention = CrossAttentionLayer(ACOUSTIC_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
         
-        # Individual prediction layers for each modality
+        # Transform BERT CLS to 1D
+        # decoder output from t/a/v/h encoders is already 1D
         self.text_prediction = nn.Linear(LANGUAGE_DIM, 1)
-        self.visual_prediction = nn.Linear(VISUAL_DIM, 1)
-        self.acoustic_prediction = nn.Linear(ACOUSTIC_DIM, 1)
-        self.hcf_prediction = nn.Linear(HCF_DIM, 1)
+
         
         # Late fusion layer: Combine individual modality predictions
         self.late_fusion_layer = nn.Sequential(
@@ -319,7 +318,9 @@ class HKT(nn.Module):
         visual_params=list(self.visual_model.named_parameters())
         hcf_params=list(self.hcf_model.named_parameters())
         text_params = list(self.text_model.named_parameters())
-        predict_params = list(self.text_prediction.named_parameters())+list(self.visual_prediction.named_parameters())+list(self.acoustic_prediction.named_parameters())+list(self.hcf_prediction.named_parameters())
+        # predict_params = list(self.text_prediction.named_parameters())+list(self.visual_prediction.named_parameters())+list(self.acoustic_prediction.named_parameters())+list(self.hcf_prediction.named_parameters())
+        predict_params = list(self.text_prediction.named_parameters())
+
         other_params=list(self.late_fusion_layer.named_parameters())
         
         return acoustic_params,visual_params,text_params,hcf_params,predict_params,other_params
@@ -363,7 +364,7 @@ class HKT(nn.Module):
         # acoustic_pred = self.acoustic_prediction(acoustic_output[0])
         # hcf_pred = self.hcf_prediction(hcf_output[0])
 
-        text_pred = text_output[:,0,:] #hidden state of CLS token
+        text_pred = self.text_prediction(text_output[:,0,:]) #BERT CLS -> 1D prediction
         visual_pred =v_cls
         acoustic_pred = a_cls
         hcf_pred = h_cls
@@ -376,10 +377,10 @@ class HKT(nn.Module):
         # print(len(text_output),len(visual_output),len(acoustic_output),len(hcf_output))
 
 
-        print(text_pred.size(),visual_pred.size(),acoustic_pred.size(),hcf_pred.size()) 
+        # print(text_pred.size(),visual_pred.size(),acoustic_pred.size(),hcf_pred.size()) 
 
-        print(len(text_pred),len(visual_pred),len(acoustic_pred),len(hcf_pred)) 
-        print(text_pred,visual_pred,acoustic_pred,hcf_pred) 
+        # print(len(text_pred),len(visual_pred),len(acoustic_pred),len(hcf_pred)) 
+        # print(text_pred,visual_pred,acoustic_pred,hcf_pred) 
         # print(LANGUAGE_DIM,VISUAL_DIM,ACOUSTIC_DIM,HCF_DIM)
 
         # print(text_pred, visual_pred, acoustic_pred, hcf_pred)
