@@ -319,7 +319,7 @@ class HKT(nn.Module):
         visual_params=list(self.visual_model.named_parameters())
         hcf_params=list(self.hcf_model.named_parameters())
         text_params = list(self.text_model.named_parameters())
-        predict_params = list(self.text_prediction.named_parameters(),self.visual_prediction.named_parameters(),self.acoustic_prediction.named_parameters(),self.hcf_prediction.named_parameters())
+        predict_params = list(self.text_prediction.named_parameters())+list(self.visual_prediction.named_parameters())+list(self.acoustic_prediction.named_parameters())+list(self.hcf_prediction.named_parameters())
         other_params=list(self.late_fusion_layer.named_parameters())
         
         return acoustic_params,visual_params,text_params,hcf_params,predict_params,other_params
