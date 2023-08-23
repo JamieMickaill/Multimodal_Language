@@ -327,10 +327,10 @@ class HKT(nn.Module):
     def forward(self, input_ids, visual, acoustic,hcf, attention_mask=None, token_type_ids=None):
         
         text_output = self.text_model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids).last_hidden_state
-        (_, _, visual_output) = self.visual_model(visual)
-        (_, _, acoustic_output) = self.acoustic_model(acoustic)
-        (_, _, hcf_output) = self.hcf_model(hcf)
-        
+        (v_cls, _, visual_output) = self.visual_model(visual)
+        (a_cls, _, acoustic_output) = self.acoustic_model(acoustic)
+        (h_cls, _, hcf_output) = self.hcf_model(hcf)
+        #[CLS] token embedding, full output, last hidden layer)
         
         # text_hcf=torch.cat((text_output,hcf_output),dim=2)
         
@@ -358,18 +358,26 @@ class HKT(nn.Module):
         # out = self.fusion_fc(fused_hidden)
 
         # Get individual predictions (CLS token from each -> 1D)
-        text_pred = self.text_prediction(text_output[:,0,:])
-        visual_pred = self.visual_prediction(visual_output[0])
-        acoustic_pred = self.acoustic_prediction(acoustic_output[0])
-        hcf_pred = self.hcf_prediction(hcf_output[0])
+        # text_pred = self.text_prediction(text_output[:,0,:])
+        # visual_pred = self.visual_prediction(visual_output[0])
+        # acoustic_pred = self.acoustic_prediction(acoustic_output[0])
+        # hcf_pred = self.hcf_prediction(hcf_output[0])
+
+        text_pred = text_output[:,0,:]
+        visual_pred =v_cls
+        acoustic_pred = a_cls
+        hcf_pred = h_cls
         
         # Concatenate individual predictions
+        # 32 32 32 32
+        # 32 64 64 64
+        # 768 36 60 4
+        # print(text_output[:,0,:],visual_output[0],acoustic_output[0],hcf_output[0])
+        # print(len(text_output),len(visual_output),len(acoustic_output),len(hcf_output))
+        # print(len(text_output[:,0,:]),len(v_cls),len(a_cls),len(h_cls))
+        # print(LANGUAGE_DIM,VISUAL_DIM,ACOUSTIC_DIM,HCF_DIM)
 
-        print(text_output[:,0,:],visual_output[0],acoustic_output[0],hcf_output[0])
-        print(len(text_output),len(visual_output),len(acoustic_output),len(hcf_output))
-        print(len(text_output[:,0,:]),len(visual_output[0]),len(acoustic_output[0]),len(hcf_output[0]))
-        print(LANGUAGE_DIM,VISUAL_DIM,ACOUSTIC_DIM,HCF_DIM)
-        print(text_pred, visual_pred, acoustic_pred, hcf_pred)
+        # print(text_pred, visual_pred, acoustic_pred, hcf_pred)
         concatenated_predictions = torch.cat((text_pred, visual_pred, acoustic_pred, hcf_pred), dim=1)
         
         # Get final prediction through the late fusion layer
