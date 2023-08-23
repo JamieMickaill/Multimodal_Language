@@ -364,6 +364,7 @@ class HKT(nn.Module):
         hcf_pred = self.hcf_prediction(hcf_output[0])
         
         # Concatenate individual predictions
+        print(len(text_output),len(visual_output),len(acoustic_output),len(hcf_output))
         print(text_output[:,0,:],visual_output[0],acoustic_output[0],hcf_output[0])
         print(len(text_output[:,0,:]),len(visual_output[0]),len(acoustic_output[0]),len(hcf_output[0]))
         print(LANGUAGE_DIM,VISUAL_DIM,ACOUSTIC_DIM,HCF_DIM)
