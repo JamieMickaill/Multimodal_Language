@@ -363,7 +363,7 @@ class HKT(nn.Module):
         # acoustic_pred = self.acoustic_prediction(acoustic_output[0])
         # hcf_pred = self.hcf_prediction(hcf_output[0])
 
-        text_pred = text_output[:,0,:]
+        text_pred = text_output[:,0,:] #hidden state of CLS token
         visual_pred =v_cls
         acoustic_pred = a_cls
         hcf_pred = h_cls
@@ -375,8 +375,10 @@ class HKT(nn.Module):
         # print(text_output[:,0,:],visual_output[0],acoustic_output[0],hcf_output[0])
         # print(len(text_output),len(visual_output),len(acoustic_output),len(hcf_output))
 
-        print(len(text_pred),len(visual_pred),len(a_cls),len(h_cls)) 
-        print(text_pred.shape(),visual_pred.shape(),acoustic_pred.shape(),hcf_pred.shape()) 
+        print(len(text_pred),len(visual_pred),len(acoustic_pred),len(hcf_pred)) 
+        print(text_pred,visual_pred,acoustic_pred,hcf_pred) 
+
+        # print(text_pred.shape(),visual_pred.shape(),acoustic_pred.shape(),hcf_pred.shape()) 
         # print(LANGUAGE_DIM,VISUAL_DIM,ACOUSTIC_DIM,HCF_DIM)
 
         # print(text_pred, visual_pred, acoustic_pred, hcf_pred)
