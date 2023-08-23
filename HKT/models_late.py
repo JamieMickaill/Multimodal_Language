@@ -292,7 +292,7 @@ class HKT(nn.Module):
         
         # Transform BERT CLS to 1D
         # decoder output from t/a/v/h encoders is already 1D
-        self.text_prediction = nn.Linear(LANGUAGE_DIM, 1)
+        self.text_decoder = nn.Linear(LANGUAGE_DIM, 1)
 
         
         # Late fusion layer: Combine individual modality predictions
@@ -317,13 +317,13 @@ class HKT(nn.Module):
         acoustic_params=list(self.acoustic_model.named_parameters())
         visual_params=list(self.visual_model.named_parameters())
         hcf_params=list(self.hcf_model.named_parameters())
-        text_params = list(self.text_model.named_parameters())
+        text_params = list(self.text_model.named_parameters()) + list(self.text_decoder.named_parameters())
         # predict_params = list(self.text_prediction.named_parameters())+list(self.visual_prediction.named_parameters())+list(self.acoustic_prediction.named_parameters())+list(self.hcf_prediction.named_parameters())
-        predict_params = list(self.text_prediction.named_parameters())
+        # predict_params = list(self.text_decoder.named_parameters())
 
         other_params=list(self.late_fusion_layer.named_parameters())
         
-        return acoustic_params,visual_params,text_params,hcf_params,predict_params,other_params
+        return acoustic_params,visual_params,text_params,hcf_params,other_params
     
     def forward(self, input_ids, visual, acoustic,hcf, attention_mask=None, token_type_ids=None):
         
@@ -333,38 +333,8 @@ class HKT(nn.Module):
         (h_cls, _, hcf_output) = self.hcf_model(hcf)
         #[CLS] token embedding, full output, last hidden layer)
         
-        # text_hcf=torch.cat((text_output,hcf_output),dim=2)
-        
-        # # attention mask conversion
-        # extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
-        # extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
-        # extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
-        
-        # text_audio_comb = self.text_audio_cross_attention(text_hcf, acoustic_output, attention_mask=extended_attention_mask)
-        # text_visual_comb = self.text_visual_cross_attention(text_hcf, visual_output, attention_mask=extended_attention_mask)
-        # audio_visual_comb = self.audio_visual_cross_attention(acoustic_output, visual_output, attention_mask=extended_attention_mask)
 
-        # # Extract embeddings
-        # text_embedding = text_hcf[:,0,:] # [CLS] token
-        # visual_embedding = F.max_pool1d(visual_output.permute(0,2,1).contiguous(), visual_output.shape[1]).squeeze(-1)
-        # acoustic_embedding = F.max_pool1d(acoustic_output.permute(0,2,1).contiguous(),acoustic_output.shape[1]).squeeze(-1)
-        
-        # text_audio_embedding = F.max_pool1d(text_audio_comb.permute(0,2,1).contiguous(), text_audio_comb.shape[1]).squeeze(-1) 
-        # text_visual_embedding = F.max_pool1d(text_visual_comb.permute(0,2,1).contiguous(),text_visual_comb.shape[1]).squeeze(-1)
-        # audio_visual_embedding = F.max_pool1d(audio_visual_comb.permute(0,2,1).contiguous(),audio_visual_comb.shape[1]).squeeze(-1)
-        
-        # fusion = (text_embedding, visual_embedding, acoustic_embedding,text_audio_embedding,text_visual_embedding,audio_visual_embedding)
-        # fused_hidden = torch.cat(fusion, dim=1)
-        
-        # out = self.fusion_fc(fused_hidden)
-
-        # Get individual predictions (CLS token from each -> 1D)
-        # text_pred = self.text_prediction(text_output[:,0,:])
-        # visual_pred = self.visual_prediction(visual_output[0])
-        # acoustic_pred = self.acoustic_prediction(acoustic_output[0])
-        # hcf_pred = self.hcf_prediction(hcf_output[0])
-
-        text_pred = self.text_prediction(text_output[:,0,:]) #BERT CLS -> 1D prediction
+        text_pred = self.text_decoder(text_output[:,0,:]) #BERT CLS -> 1D Decoder
         visual_pred =v_cls
         acoustic_pred = a_cls
         hcf_pred = h_cls
