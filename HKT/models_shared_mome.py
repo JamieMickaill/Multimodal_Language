@@ -120,10 +120,10 @@ class TransformerLayerMOME(nn.Module):
         a_start, a_end = v_end, v_end + self.max_seq_length
         h_start, h_end = a_end, a_end + self.max_seq_length
 
-        t = src[:, t_start:t_end] + self.dropout1_t(self.fc_t(self.norm1_t(src[:, t_start:t_end])))
-        v = src[:, v_start:v_end] + self.dropout1_v(self.fc_v(self.norm1_v(src[:, v_start:v_end])))
-        a = src[:, a_start:a_end] + self.dropout1_a(self.fc_a(self.norm1_a(src[:, a_start:a_end])))
-        h = src[:, h_start:h_end] + self.dropout1_h(self.fc_h(self.norm1_h(src[:, h_start:h_end])))
+        t = src[:, t_start:t_end, :] + self.dropout1_t(self.fc_t(self.norm1_t(src[:, t_start:t_end, :])))
+        v = src[:, v_start:v_end, :] + self.dropout1_v(self.fc_v(self.norm1_v(src[:, v_start:v_end, :])))
+        a = src[:, a_start:a_end, :] + self.dropout1_a(self.fc_a(self.norm1_a(src[:, a_start:a_end, :])))
+        h = src[:, h_start:h_end, :] + self.dropout1_h(self.fc_h(self.norm1_h(src[:, h_start:h_end, :])))
 
         x = torch.cat((t, v, a, h), dim=1)
 
