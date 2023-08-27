@@ -644,7 +644,7 @@ def prep_for_training(num_training_steps):
         #already has rich contextual representation. So in the beginning the gradient flows ignores other encoders which are trained from low level features. 
         # We found that if we intitalize the weights of the acoustic, visual and hcf encoders of HKT model from the best unimodal models that we already ran for ablation study then
         #the model converege faster. Other wise it takes very long time to converge. 
-        if args.dataset=="humor":
+        if args.dataset=="humor" or args.dataset=="humor_emo":
             visual_model = Transformer(VISUAL_DIM, num_layers=7, nhead=3, dim_feedforward= 128)
             visual_model.load_state_dict(torch.load("./model_weights/init/humor/humorVisualTransformer.pt"), strict=False)
             acoustic_model = Transformer(ACOUSTIC_DIM, num_layers=8, nhead=3, dim_feedforward = 256)
