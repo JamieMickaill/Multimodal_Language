@@ -43,6 +43,7 @@ class Transformer(nn.Module):
         self.encoder = TransformerEncoder(TransformerLayer(d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=dropout), num_layers=num_layers)
         self.decoder = nn.Linear(d_model, 1)
         self.norm = nn.LayerNorm(d_model)
+        self.max_seq_length = max_seq_length
 
     def forward(self, input, attention_mask=None):
         seq_length = input.size()[1]
@@ -76,6 +77,51 @@ class TransformerLayer(nn.Module):
         src = self.norm2(src)
 
         return src
+
+#separate feed forward networks for each modality
+#all inputs d_text
+#based on https://github.com/microsoft/unilm/blob/master/vlmo/vlmo/modules/multiway_transformer.py
+class TransformerLayerMOME(nn.Module):
+    def __init__(self, hidden_size, nhead=1, dim_feedforward=128, dropout=0.1, max_seq_length=5000):
+        super(TransformerLayer, self).__init__()
+        self.max_seq_length = max_seq_length
+        self.self_attention = Attention(hidden_size, nhead, dropout)
+        self.fc_t = nn.Sequential(nn.Linear(hidden_size, dim_feedforward), nn.ReLU(), nn.Linear(dim_feedforward, hidden_size))
+        self.fc_a = nn.Sequential(nn.Linear(hidden_size, dim_feedforward), nn.ReLU(), nn.Linear(dim_feedforward, hidden_size))
+        self.fc_v = nn.Sequential(nn.Linear(hidden_size, dim_feedforward), nn.ReLU(), nn.Linear(dim_feedforward, hidden_size))
+        self.fc_h = nn.Sequential(nn.Linear(hidden_size, dim_feedforward), nn.ReLU(), nn.Linear(dim_feedforward, hidden_size))
+        
+        self.norm1 = nn.LayerNorm(hidden_size)
+        self.norm1_t = nn.LayerNorm(hidden_size)
+        self.norm1_a = nn.LayerNorm(hidden_size)
+        self.norm1_v = nn.LayerNorm(hidden_size)
+        self.norm1_h = nn.LayerNorm(hidden_size)
+
+
+        #dedicated dropout unnecessary?
+        self.dropout1  = nn.Dropout(dropout)
+        self.dropout1_t = nn.Dropout(dropout)
+        self.dropout1_a = nn.Dropout(dropout)
+        self.dropout1_v = nn.Dropout(dropout)
+        self.dropout1_h = nn.Dropout(dropout)
+
+
+
+    def forward(self, src, attention_mask=None):
+        #self attn over whole sequence
+        src_0 = self.norm1(src)
+        src_1 = self.self_attention(src_0, src_0, attention_mask=attention_mask)
+        src = src + self.dropout1(src_1)
+
+        #separate modalities for experts
+        t = src[:self.max_seq_length] + self.dropout1_t(self.fc_t(self.norm1_t(src[:self.max_seq_length])))
+        v = src[self.max_seq_length:self.max_seq_length*2] + self.dropout1_v(self.fc_v(self.norm1_v(src[self.max_seq_length:self.max_seq_length*2])))
+        a = src[self.max_seq_length*2:self.max_seq_length*3]  + self.dropout1_a(self.fc_a(self.norm1_a(src[self.max_seq_length*2:self.max_seq_length*3])))
+        h = src[self.max_seq_length*3:self.max_seq_length*4]  + self.dropout1_h(self.fc_h(self.norm1_h(src[self.max_seq_length*3:self.max_seq_length*4])))
+
+        x = torch.cat((t,v,a,h),dim=1)
+
+        return x
 
 
 class TransformerEncoder(nn.Module):
@@ -289,13 +335,13 @@ class HKT(nn.Module):
         self.acoustic_projection = nn.Linear(ACOUSTIC_DIM, LANGUAGE_DIM)
         self.hcf_projection = nn.Linear(HCF_DIM, LANGUAGE_DIM)
 
-        
-        #concat horizontally (add sep) 
+        #concat horizontally (Sep already added as zeros)
         #create MOME transformer
-        shared_layer = TransformerLayerMOME(LANGUAGE_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
-        self.shared_transformer = TransformerEncoderMOME(shared_layer, num_layers=args.cross_n_layers)
-        #total dim is V,A,T,H, VATH
-        total_dim =  2*(LANGUAGE_DIM+HCF_DIM+VISUAL_DIM+ACOUSTIC_DIM)
+        shared_layer = TransformerLayerMOME(LANGUAGE_DIM, nhead=args.cross_n_heads, dropout=args.dropout, max_seq_length=args.max_seq_length)
+        self.shared_transformer = TransformerEncoder(shared_layer, num_layers=args.cross_n_layers)
+        
+        #total dim for fusion is T (all modalities projected to T)
+        total_dim =  (LANGUAGE_DIM)
 
         self.fusion_fc = nn.Sequential(nn.Linear(total_dim, args.fusion_dim), 
                                        nn.ReLU(), 
@@ -323,31 +369,33 @@ class HKT(nn.Module):
         
         
         #Project vah to text dimension
-        v_tokens = ["[V_CLS]"] + visual_output 
-        a_tokens = ["[A_CLS]"] + acoustic_output 
-        h_tokens = ["[H_CLS]"] + hcf_output 
+        v_tokens = self.visual_projection(visual_output) 
+        a_tokens = self.acoustic_projection(acoustic_output) 
+        h_tokens = self.hcf_projection( hcf_output )
 
-        text_hcf=torch.cat((text_output,hcf_output),dim=2)
-        all_featues_comb = torch.cat((text_output,hcf_output, visual_output,acoustic_output),dim=2)
-        all_features_embedding = self.shared_transformer(all_featues_comb)
+        # text_hcf=torch.cat((text_output,hcf_output),dim=2)
+        all_features_comb = torch.cat((text_output,v_tokens, a_tokens,h_tokens),dim=1)
+
+        #MOME self-attn/merged attn over concat seq with modality specific FFN
+        all_features_embedding = self.shared_transformer(all_features_comb)
         
         # attention mask conversion
-        extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
-        extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
-        extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
+        # extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
+        # extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
+        # extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
         
         # Extract embeddings / maxpool hidden states
-        text_embedding = text_hcf[:,0,:] # [CLS] token sentence embedding
-        visual_embedding = F.max_pool1d(visual_output.permute(0,2,1).contiguous(), visual_output.shape[1]).squeeze(-1)
-        acoustic_embedding = F.max_pool1d(acoustic_output.permute(0,2,1).contiguous(),acoustic_output.shape[1]).squeeze(-1)
-        all_embedding = F.max_pool1d(all_features_embedding.permute(0,2,1).contiguous(), all_features_embedding.shape[1]).squeeze(-1) 
+        # text_embedding = text_hcf[:,0,:] # [CLS] token sentence embedding
+        # visual_embedding = F.max_pool1d(visual_output.permute(0,2,1).contiguous(), visual_output.shape[1]).squeeze(-1)
+        # acoustic_embedding = F.max_pool1d(acoustic_output.permute(0,2,1).contiguous(),acoustic_output.shape[1]).squeeze(-1)
+        # all_embedding = F.max_pool1d(all_features_embedding.permute(0,2,1).contiguous(), all_features_embedding.shape[1]).squeeze(-1) 
 
-        fusion = (text_embedding, visual_embedding, acoustic_embedding,all_embedding)
-        fused_hidden = torch.cat(fusion, dim=1)
+        # fusion = (text_embedding, visual_embedding, acoustic_embedding,all_embedding)
+        # fused_hidden = torch.cat(fusion, dim=1)
         
-        out = self.fusion_fc(fused_hidden)
+        out = self.fusion_fc(all_features_embedding)
         
-        return (out, fused_hidden)
+        return (out, all_features_embedding)
 
 
 
