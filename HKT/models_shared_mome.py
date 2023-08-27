@@ -113,13 +113,19 @@ class TransformerLayerMOME(nn.Module):
         src_1 = self.self_attention(src_0, src_0, attention_mask=attention_mask)
         src = src + self.dropout1(src_1)
 
-        #separate modalities for experts
-        t = src[::self.max_seq_length] + self.dropout1_t(self.fc_t(self.norm1_t(src[:self.max_seq_length])))
-        v = src[:self.max_seq_length:self.max_seq_length*2] + self.dropout1_v(self.fc_v(self.norm1_v(src[self.max_seq_length:self.max_seq_length*2])))
-        a = src[:self.max_seq_length*2:self.max_seq_length*3]  + self.dropout1_a(self.fc_a(self.norm1_a(src[self.max_seq_length*2:self.max_seq_length*3])))
-        h = src[:self.max_seq_length*3:self.max_seq_length*4]  + self.dropout1_h(self.fc_h(self.norm1_h(src[self.max_seq_length*3:self.max_seq_length*4])))
 
-        x = torch.cat((t,v,a,h),dim=1)
+        # separate modalities for experts
+        t_start, t_end = 0, self.max_seq_length
+        v_start, v_end = t_end, t_end*2
+        a_start, a_end = v_end, v_end + self.max_seq_length
+        h_start, h_end = a_end, a_end + self.max_seq_length
+
+        t = src[:, t_start:t_end] + self.dropout1_t(self.fc_t(self.norm1_t(src[:, t_start:t_end])))
+        v = src[:, v_start:v_end] + self.dropout1_v(self.fc_v(self.norm1_v(src[:, v_start:v_end])))
+        a = src[:, a_start:a_end] + self.dropout1_a(self.fc_a(self.norm1_a(src[:, a_start:a_end])))
+        h = src[:, h_start:h_end] + self.dropout1_h(self.fc_h(self.norm1_h(src[:, h_start:h_end])))
+
+        x = torch.cat((t, v, a, h), dim=1)
 
         return x
 
