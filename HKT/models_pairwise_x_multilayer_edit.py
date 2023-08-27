@@ -56,19 +56,21 @@ class Transformer(nn.Module):
         return out
 
 
-
+#norm before attn as per https://tunz.kr/post/4 & https://github.com/pytorch/pytorch/issues/50086 & annotated transformer
 class TransformerLayer(nn.Module):
     def __init__(self, hidden_size, nhead=1, dim_feedforward=128, dropout=0.1):
         super(TransformerLayer, self).__init__()
         self.self_attention = Attention(hidden_size, nhead, dropout)
         self.fc = nn.Sequential(nn.Linear(hidden_size, dim_feedforward), nn.ReLU(), nn.Linear(dim_feedforward, hidden_size))
+        self.norm0 = nn.LayerNorm(hidden_size)
         self.norm1 = nn.LayerNorm(hidden_size)
         self.norm2 = nn.LayerNorm(hidden_size)
         self.dropout1 = nn.Dropout(dropout)
         self.dropout2 = nn.Dropout(dropout)
 
     def forward(self, src, attention_mask=None):
-        src_1 = self.self_attention(src, src, attention_mask=attention_mask)
+        src_0 = self.norm0(src)
+        src_1 = self.self_attention(src_0, src_0, attention_mask=attention_mask)
         src = src + self.dropout1(src_1)
         src = self.norm1(src)
         src_2 = self.fc(src)
@@ -144,7 +146,7 @@ class Attention(nn.Module):
         context_layer = context_layer.view(*new_context_layer_shape)
         return context_layer
 
-
+#norm before attn as per https://tunz.kr/post/4 & https://github.com/pytorch/pytorch/issues/50086 & annotated transformer
 class CrossAttentionLayer(nn.Module):
     def __init__(self, hidden_size, context_size, nhead=1, dropout=0.1):
         super(CrossAttentionLayer, self).__init__()
@@ -152,6 +154,9 @@ class CrossAttentionLayer(nn.Module):
         self.context_cross_attention = Attention(context_size, nhead, dropout, ctx_dim=hidden_size)
         self.self_attention = Attention(hidden_size + context_size, nhead, dropout)
         self.fc = nn.Sequential(nn.Linear(hidden_size + context_size, hidden_size + context_size), nn.ReLU())
+        self.norm0_c = nn.LayerNorm(context_size)
+        self.norm0_h = nn.LayerNorm(hidden_size)
+        self.norm0_ch = nn.LayerNorm(hidden_size + context_size)
         self.norm1 = nn.LayerNorm(hidden_size + context_size)
         self.norm2 = nn.LayerNorm(hidden_size + context_size)
         self.dropout1 = nn.Dropout(dropout)
@@ -159,14 +164,17 @@ class CrossAttentionLayer(nn.Module):
 
     def forward(self, src, context, attention_mask=None):
         #x attn over src and context (separate encoders)
-        new_src = self.src_cross_attention(src, context, attention_mask=attention_mask)
-        new_context = self.context_cross_attention(context, src, attention_mask=attention_mask)
+        src_0,context_0 = self.norm0_h(src),self.norm0_c(context)
+        new_src = self.src_cross_attention(src_0, context_0, attention_mask=attention_mask)
+        new_context = self.context_cross_attention(context_0, src_0, attention_mask=attention_mask)
         
         #combine cross attended features
         cross_src = torch.cat((new_src, new_context), dim=2)
+        #norm over inputs to self-attn
+        cross_src_0 = self.norm0_ch(cross_src)
         
         #self attn over cross attended features
-        cross_src_1 = self.self_attention(cross_src, cross_src, attention_mask)
+        cross_src_1 = self.self_attention(cross_src_0, cross_src_0, attention_mask)
         #skip connection + dropout
         cross_src = cross_src + self.dropout1(cross_src_1)
         #layernorm
@@ -274,7 +282,8 @@ class HKTMultiLayerCrossAttn(nn.Module):
 
 
 
-#Single shared multimodal transformer (multilayer)
+#Multi layer x-attn between AV VT AT
+
 class HKT(nn.Module):
     def __init__(self, text_model, visual_model, acoustic_model, hcf_model, args, dropout=0.1, fusion_dim=128):
         super(HKT, self).__init__()
@@ -285,11 +294,17 @@ class HKT(nn.Module):
         self.acoustic_model = acoustic_model
         self.hcf_model = hcf_model
         
-        #concat vertically (can also project to transformer dimm and process individually)
-        shared_layer = TransformerLayer(LANGUAGE_DIM+HCF_DIM+VISUAL_DIM+ACOUSTIC_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
-        self.shared_transformer = TransformerEncoder(shared_layer, num_layers=args.cross_n_layers)
-        #total dim is V,A,T,H, VATH
-        total_dim =  2*(LANGUAGE_DIM+HCF_DIM+VISUAL_DIM+ACOUSTIC_DIM)
+
+
+        text_audio_cross_attention_layer = CrossAttentionLayer(LANGUAGE_DIM+HCF_DIM, ACOUSTIC_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        self.text_audio_cross_attention = CrossAttentionEncoder(text_audio_cross_attention_layer,args.cross_n_layers)
+        text_visual_cross_attention_layer = CrossAttentionLayer(LANGUAGE_DIM+HCF_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        self.text_visual_cross_attention = CrossAttentionEncoder(text_visual_cross_attention_layer,args.cross_n_layers)
+        audio_visual_cross_attention_layer = CrossAttentionLayer(ACOUSTIC_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        self.audio_visual_cross_attention = CrossAttentionEncoder(audio_visual_cross_attention_layer,args.cross_n_layers)
+        
+        #total dim is VA, V(TH), A(TH), V,A,T,H
+        total_dim =  3*(LANGUAGE_DIM+HCF_DIM) + 3*(VISUAL_DIM) + 3*(ACOUSTIC_DIM) 
 
         self.fusion_fc = nn.Sequential(nn.Linear(total_dim, args.fusion_dim), 
                                        nn.ReLU(), 
@@ -304,7 +319,7 @@ class HKT(nn.Module):
         hcf_params=list(self.hcf_model.named_parameters())
         text_params = list(self.text_model.named_parameters())
         
-        other_params=list(self.shared_transformer.named_parameters())+list(self.fusion_fc.named_parameters())
+        other_params=list(self.text_audio_cross_attention.named_parameters())+list(self.text_visual_cross_attention.named_parameters())+list(self.audio_visual_cross_attention.named_parameters())+list(self.fusion_fc.named_parameters())
         
         return acoustic_params,visual_params,text_params,hcf_params,other_params
     
@@ -317,21 +332,26 @@ class HKT(nn.Module):
         
         
         text_hcf=torch.cat((text_output,hcf_output),dim=2)
-        all_featues_comb = torch.cat((text_output,hcf_output, visual_output,acoustic_output),dim=2)
-        all_features_embedding = self.shared_transformer(all_featues_comb)
         
         # attention mask conversion
         extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
         extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
         extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
         
-        # Extract embeddings / maxpool hidden states
-        text_embedding = text_hcf[:,0,:] # [CLS] token sentence embedding
+        text_audio_comb = self.text_audio_cross_attention(text_hcf, acoustic_output, attention_mask=extended_attention_mask)
+        text_visual_comb = self.text_visual_cross_attention(text_hcf, visual_output, attention_mask=extended_attention_mask)
+        audio_visual_comb = self.audio_visual_cross_attention(acoustic_output, visual_output, attention_mask=extended_attention_mask)
+
+        # Extract embeddings
+        text_embedding = text_hcf[:,0,:] # [CLS] token
         visual_embedding = F.max_pool1d(visual_output.permute(0,2,1).contiguous(), visual_output.shape[1]).squeeze(-1)
         acoustic_embedding = F.max_pool1d(acoustic_output.permute(0,2,1).contiguous(),acoustic_output.shape[1]).squeeze(-1)
-        all_embedding = F.max_pool1d(all_features_embedding.permute(0,2,1).contiguous(), all_features_embedding.shape[1]).squeeze(-1) 
-
-        fusion = (text_embedding, visual_embedding, acoustic_embedding,all_embedding)
+        
+        text_audio_embedding = F.max_pool1d(text_audio_comb.permute(0,2,1).contiguous(), text_audio_comb.shape[1]).squeeze(-1) 
+        text_visual_embedding = F.max_pool1d(text_visual_comb.permute(0,2,1).contiguous(),text_visual_comb.shape[1]).squeeze(-1)
+        audio_visual_embedding = F.max_pool1d(audio_visual_comb.permute(0,2,1).contiguous(),audio_visual_comb.shape[1]).squeeze(-1)
+        
+        fusion = (text_embedding, visual_embedding, acoustic_embedding,text_audio_embedding,text_visual_embedding,audio_visual_embedding)
         fused_hidden = torch.cat(fusion, dim=1)
         
         out = self.fusion_fc(fused_hidden)

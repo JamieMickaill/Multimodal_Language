@@ -284,10 +284,16 @@ class HKT(nn.Module):
         self.visual_model = visual_model
         self.acoustic_model = acoustic_model
         self.hcf_model = hcf_model
+
+        self.visual_projection = nn.Linear(VISUAL_DIM, LANGUAGE_DIM)
+        self.acoustic_projection = nn.Linear(ACOUSTIC_DIM, LANGUAGE_DIM)
+        self.hcf_projection = nn.Linear(HCF_DIM, LANGUAGE_DIM)
+
         
-        #concat vertically (can also project to transformer dimm and process individually)
-        shared_layer = TransformerLayer(LANGUAGE_DIM+HCF_DIM+VISUAL_DIM+ACOUSTIC_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
-        self.shared_transformer = TransformerEncoder(shared_layer, num_layers=args.cross_n_layers)
+        #concat horizontally (add sep) 
+        #create MOME transformer
+        shared_layer = TransformerLayerMOME(LANGUAGE_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        self.shared_transformer = TransformerEncoderMOME(shared_layer, num_layers=args.cross_n_layers)
         #total dim is V,A,T,H, VATH
         total_dim =  2*(LANGUAGE_DIM+HCF_DIM+VISUAL_DIM+ACOUSTIC_DIM)
 
@@ -316,6 +322,11 @@ class HKT(nn.Module):
         (_, _, hcf_output) = self.hcf_model(hcf)
         
         
+        #Project vah to text dimension
+        v_tokens = ["[V_CLS]"] + visual_output 
+        a_tokens = ["[A_CLS]"] + acoustic_output 
+        h_tokens = ["[H_CLS]"] + hcf_output 
+
         text_hcf=torch.cat((text_output,hcf_output),dim=2)
         all_featues_comb = torch.cat((text_output,hcf_output, visual_output,acoustic_output),dim=2)
         all_features_embedding = self.shared_transformer(all_featues_comb)
