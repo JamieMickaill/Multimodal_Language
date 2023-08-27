@@ -48,7 +48,7 @@ parser.add_argument(
     "--model", type=str, choices=["HKT","language_only", "acoustic_only", "visual_only","hcf_only"], default="HKT",
 )
 
-parser.add_argument("--dataset", type=str, choices=["humor", "sarcasm"], default="sarcasm")
+parser.add_argument("--dataset", type=str, choices=["humor", "sarcasm","humor_emo"], default="sarcasm")
 parser.add_argument("--batch_size", type=int, default=16)
 parser.add_argument("--max_seq_length", type=int, default=85)
 parser.add_argument("--n_layers", type=int, default=1)
