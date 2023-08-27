@@ -644,19 +644,19 @@ def prep_for_training(num_training_steps):
         #the model converege faster. Other wise it takes very long time to converge. 
         if args.dataset=="humor":
             visual_model = Transformer(VISUAL_DIM, num_layers=7, nhead=3, dim_feedforward= 128)
-            visual_model.load_state_dict(torch.load("./model_weights/init/humor/humorVisualTransformer.pt"))
+            visual_model.load_state_dict(torch.load("./model_weights/init/humor/humorVisualTransformer.pt"), strict=False)
             acoustic_model = Transformer(ACOUSTIC_DIM, num_layers=8, nhead=3, dim_feedforward = 256)
-            acoustic_model.load_state_dict(torch.load("./model_weights/init/humor/humorAcousticTransformer.pt"))
+            acoustic_model.load_state_dict(torch.load("./model_weights/init/humor/humorAcousticTransformer.pt"), strict=False)
             hcf_model = Transformer(HCF_DIM, num_layers=3, nhead=2, dim_feedforward = 128)
-            hcf_model.load_state_dict(torch.load("./model_weights/init/humor/humorHCFTransformer.pt"))
+            hcf_model.load_state_dict(torch.load("./model_weights/init/humor/humorHCFTransformer.pt"), strict=False)
             
         elif args.dataset=="sarcasm":
             visual_model = Transformer(VISUAL_DIM, num_layers=8, nhead=4, dim_feedforward=1024)
-            visual_model.load_state_dict(torch.load("./model_weights/init/sarcasm/sarcasmVisualTransformer.pt"))
+            visual_model.load_state_dict(torch.load("./model_weights/init/sarcasm/sarcasmVisualTransformer.pt"), strict=False)
             acoustic_model = Transformer(ACOUSTIC_DIM, num_layers=1, nhead=3, dim_feedforward=512)
-            acoustic_model.load_state_dict(torch.load("./model_weights/init/sarcasm/sarcasmAcousticTransformer.pt"))
+            acoustic_model.load_state_dict(torch.load("./model_weights/init/sarcasm/sarcasmAcousticTransformer.pt"), strict=False)
             hcf_model = Transformer(HCF_DIM, num_layers=8, nhead=4, dim_feedforward=128)
-            hcf_model.load_state_dict(torch.load("./model_weights/init/sarcasm/sarcasmHCFTransformer.pt"))
+            hcf_model.load_state_dict(torch.load("./model_weights/init/sarcasm/sarcasmHCFTransformer.pt"), strict=False)
         
         text_model = AlbertModel.from_pretrained('albert-base-v2')
         model = HKT(text_model, visual_model, acoustic_model,hcf_model, args)
