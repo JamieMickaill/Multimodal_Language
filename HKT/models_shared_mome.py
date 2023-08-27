@@ -390,7 +390,7 @@ class HKT(nn.Module):
         # acoustic_embedding = F.max_pool1d(acoustic_output.permute(0,2,1).contiguous(),acoustic_output.shape[1]).squeeze(-1)
         # L_AV_embedding = F.max_pool1d(noverbal_text.permute(0,2,1).contiguous(),noverbal_text.shape[1]).squeeze(-1)
         
-        seq_len = self.args.max_seq_length
+        seq_len = self.shared_transformer.max_seq_length
         # text_embedding = torch.max(all_features_embedding[:, :seq_len, :], dim=1).values
         visual_embedding = torch.max(all_features_embedding[:, seq_len:seq_len*2, :], dim=1).values
         acoustic_embedding = torch.max(all_features_embedding[:, seq_len*2:seq_len*3, :], dim=1).values
