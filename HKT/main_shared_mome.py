@@ -719,7 +719,7 @@ def set_random_seed(seed):
 
 def main():
     
-    wandb.init(project="Fusion", group="shared")
+    wandb.init(project="Fusion", group="shared_mome")
     wandb.config.update(args)
     
     if(args.seed == -1):
