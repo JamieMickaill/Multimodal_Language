@@ -58,7 +58,7 @@ parser.add_argument("--cross_n_heads", type=int, default=4)
 parser.add_argument("--fusion_dim", type=int, default=172)
 parser.add_argument("--dropout", type=float, default=0.2366)
 parser.add_argument("--epochs", type=int, default=20)
-
+parser.add_argument("--hcf_dim", type=int, default=4)
 parser.add_argument("--seed", type=int, default=100)
 
 parser.add_argument("--learning_rate", type=float, default=0.000005)
@@ -191,7 +191,7 @@ def convert_humor_to_features(examples, tokenizer, punchline_only=False):
             )
         
         
-        hcf_zero = np.zeros((1,4))
+        hcf_zero = np.zeros((1,HCF_DIM))
         if len(tokens_a) == 0:
             hcf = np.concatenate((hcf_zero, hcf_zero, hcf_b, hcf_zero))
         else:
@@ -290,6 +290,8 @@ def get_appropriate_dataset(data, tokenizer, parition):
 def set_up_data_loader():
     if args.dataset=="humor":
         data_file = "ur_funny.pkl"
+    if args.dataset=="humor_emo":
+        data_file = "ur_funny_emo.pkl"
     elif args.dataset=="sarcasm":
         data_file = "mustard.pkl"
         
@@ -731,6 +733,8 @@ def main():
     wandb.config.update({"seed": seed}, allow_val_change=True)
     
     set_random_seed(seed)
+
+    HCF_DIM = args.hcf_dim
     
     train_dataloader,dev_dataloader,test_dataloader=set_up_data_loader()
     print("Dataset Loaded: ",args.dataset)
