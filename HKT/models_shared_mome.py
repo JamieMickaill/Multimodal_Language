@@ -83,7 +83,7 @@ class TransformerLayer(nn.Module):
 #based on https://github.com/microsoft/unilm/blob/master/vlmo/vlmo/modules/multiway_transformer.py
 class TransformerLayerMOME(nn.Module):
     def __init__(self, hidden_size, nhead=1, dim_feedforward=128, dropout=0.1, max_seq_length=5000):
-        super(TransformerLayer, self).__init__()
+        super(TransformerLayerMOME, self).__init__()
         self.max_seq_length = max_seq_length
         self.self_attention = Attention(hidden_size, nhead, dropout)
         self.fc_t = nn.Sequential(nn.Linear(hidden_size, dim_feedforward), nn.ReLU(), nn.Linear(dim_feedforward, hidden_size))
