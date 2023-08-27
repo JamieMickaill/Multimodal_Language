@@ -347,7 +347,7 @@ class HKT(nn.Module):
         self.shared_transformer = TransformerEncoder(shared_layer, num_layers=args.cross_n_layers)
         
         #total dim for fusion is T (all modalities projected to T)
-        total_dim =  (LANGUAGE_DIM)
+        total_dim =  4*(LANGUAGE_DIM)
 
         self.fusion_fc = nn.Sequential(nn.Linear(total_dim, args.fusion_dim), 
                                        nn.ReLU(), 
@@ -384,7 +384,23 @@ class HKT(nn.Module):
 
         #MOME self-attn/merged attn over concat seq with modality specific FFN
         all_features_embedding = self.shared_transformer(all_features_comb)
+
+        text_embedding = text_output[:,0,:] # [CLS] token
+        # visual_embedding = F.max_pool1d(visual_output.permute(0,2,1).contiguous(), visual_output.shape[1]).squeeze(-1)
+        # acoustic_embedding = F.max_pool1d(acoustic_output.permute(0,2,1).contiguous(),acoustic_output.shape[1]).squeeze(-1)
+        # L_AV_embedding = F.max_pool1d(noverbal_text.permute(0,2,1).contiguous(),noverbal_text.shape[1]).squeeze(-1)
         
+        seq_len = self.args.max_seq_length
+        # text_embedding = torch.max(all_features_embedding[:, :seq_len, :], dim=1).values
+        visual_embedding = torch.max(all_features_embedding[:, seq_len:seq_len*2, :], dim=1).values
+        acoustic_embedding = torch.max(all_features_embedding[:, seq_len*2:seq_len*3, :], dim=1).values
+        hcf_embedding = torch.max(all_features_embedding[:, seq_len*3:seq_len*4, :], dim=1).values
+
+        # Concatenate pooled embeddings
+        fused_embeddings = torch.cat((text_embedding, visual_embedding, acoustic_embedding, hcf_embedding), dim=1)
+
+        # Pass through fusion layers
+        out = self.fusion_fc(fused_embeddings)
         # attention mask conversion
         # extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
         # extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
@@ -399,9 +415,8 @@ class HKT(nn.Module):
         # fusion = (text_embedding, visual_embedding, acoustic_embedding,all_embedding)
         # fused_hidden = torch.cat(fusion, dim=1)
         
-        out = self.fusion_fc(all_features_embedding)
         
-        return (out, all_features_embedding)
+        return (out, fused_embeddings)
 
 
 
