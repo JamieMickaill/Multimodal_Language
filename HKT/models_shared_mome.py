@@ -368,56 +368,46 @@ class HKT(nn.Module):
         
         return acoustic_params,visual_params,text_params,hcf_params,other_params
     
-    def forward(self, input_ids, visual, acoustic,hcf, attention_mask=None, token_type_ids=None):
-        
+
+    def forward(self, input_ids, visual, acoustic, hcf, attention_mask=None, token_type_ids=None):
         text_output = self.text_model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids).last_hidden_state
         (_, _, visual_output) = self.visual_model(visual)
         (_, _, acoustic_output) = self.acoustic_model(acoustic)
         (_, _, hcf_output) = self.hcf_model(hcf)
         
-        
-        #Project vah to text dimension
+        # Project vah to text dimension
         v_tokens = self.visual_projection(visual_output) 
         a_tokens = self.acoustic_projection(acoustic_output) 
-        h_tokens = self.hcf_projection( hcf_output )
+        h_tokens = self.hcf_projection(hcf_output)
 
-        # text_hcf=torch.cat((text_output,hcf_output),dim=2)
-        all_features_comb = torch.cat((text_output,v_tokens, a_tokens,h_tokens),dim=1)
-
-        #MOME self-attn/merged attn over concat seq with modality specific FFN
-        all_features_embedding = self.shared_transformer(all_features_comb)
-
-
-        seq_len = self.seq_len
-        kernel_size = seq_len
-
-
-        #maxpool over modality sequences
-        ###
-        text_embedding = all_features_embedding[:, :0, :] #CLS token
-
-        visual_embedding_pool = F.max_pool1d(all_features_embedding[:, seq_len:seq_len*2].permute(0, 2, 1), kernel_size)
-        visual_embedding = visual_embedding_pool.squeeze(-1)
-
-        acoustic_embedding_pool = F.max_pool1d(all_features_embedding[:, seq_len*2:seq_len*3].permute(0, 2, 1), kernel_size)
-        acoustic_embedding = acoustic_embedding_pool.squeeze(-1)
-
-        hcf_embedding_pool = F.max_pool1d(all_features_embedding[:, seq_len*3:seq_len*4].permute(0, 2, 1), kernel_size)
-        hcf_embedding = hcf_embedding_pool.squeeze(-1)
-        ###
-
-        # visual_embedding = torch.max(all_features_embedding[:, seq_len:seq_len*2, :], dim=1).values
-        # acoustic_embedding = torch.max(all_features_embedding[:, seq_len*2:seq_len*3, :], dim=1).values
-        # hcf_embedding = torch.max(all_features_embedding[:, seq_len*3:seq_len*4, :], dim=1).values
-
-        # Concatenate pooled embeddings
-        fused_embeddings = torch.cat((text_embedding, visual_embedding, acoustic_embedding, hcf_embedding), dim=1)
-
-        # Pass through fusion layers
-        out = self.fusion_fc(fused_embeddings)
-   
+        all_features_comb = torch.cat((text_output, v_tokens, a_tokens, h_tokens), dim=1)
         
-        return (out, fused_embeddings)
+        # MOME self-attn/merged attn over concat seq with modality specific FFN
+        all_features_embedding = self.shared_transformer(all_features_comb)
+        
+        # Extracting sequences after shared encoder processing
+        text_len = text_output.size(1)
+        v_len = v_tokens.size(1)
+        a_len = a_tokens.size(1)
+        h_len = h_tokens.size(1)
+        
+        text_cls = all_features_embedding[:, 0, :]
+        text_seq_after_shared = all_features_embedding[:, :text_len, :]
+        v_seq_after_shared = all_features_embedding[:, text_len:text_len + v_len, :]
+        a_seq_after_shared = all_features_embedding[:, text_len + v_len:text_len + v_len + a_len, :]
+        h_seq_after_shared = all_features_embedding[:, text_len + v_len + a_len:, :]
+        
+        # Max pooling each sequence
+        text_pooled = F.max_pool1d(text_seq_after_shared.permute(0, 2, 1), kernel_size=text_seq_after_shared.size(1)).squeeze(-1)
+        v_pooled = F.max_pool1d(v_seq_after_shared.permute(0, 2, 1), kernel_size=v_seq_after_shared.size(1)).squeeze(-1)
+        a_pooled = F.max_pool1d(a_seq_after_shared.permute(0, 2, 1), kernel_size=a_seq_after_shared.size(1)).squeeze(-1)
+        h_pooled = F.max_pool1d(h_seq_after_shared.permute(0, 2, 1), kernel_size=h_seq_after_shared.size(1)).squeeze(-1)
+        
+        fused_output = torch.cat([text_pooled, v_pooled, a_pooled, h_pooled], dim=1)
+        fused_result = self.fusion_fc(fused_output)
+
+
+        return (fused_result, fused_output)
 
 
 
