@@ -398,12 +398,12 @@ class HKT(nn.Module):
         h_seq_after_shared = all_features_embedding[:, text_len + v_len + a_len:, :]
         
         # Max pooling each sequence
-        text_pooled = F.max_pool1d(text_seq_after_shared.permute(0, 2, 1), kernel_size=text_seq_after_shared.size(1)).squeeze(-1)
+        # text_pooled = F.max_pool1d(text_seq_after_shared.permute(0, 2, 1), kernel_size=text_seq_after_shared.size(1)).squeeze(-1)
         v_pooled = F.max_pool1d(v_seq_after_shared.permute(0, 2, 1), kernel_size=v_seq_after_shared.size(1)).squeeze(-1)
         a_pooled = F.max_pool1d(a_seq_after_shared.permute(0, 2, 1), kernel_size=a_seq_after_shared.size(1)).squeeze(-1)
         h_pooled = F.max_pool1d(h_seq_after_shared.permute(0, 2, 1), kernel_size=h_seq_after_shared.size(1)).squeeze(-1)
         
-        fused_output = torch.cat([text_pooled, v_pooled, a_pooled, h_pooled], dim=1)
+        fused_output = torch.cat([text_cls, v_pooled, a_pooled, h_pooled], dim=1)
         fused_result = self.fusion_fc(fused_output)
 
 
