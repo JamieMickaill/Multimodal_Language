@@ -86,6 +86,7 @@ class TransformerLayerMOME(nn.Module):
         super(TransformerLayerMOME, self).__init__()
         self.max_seq_length = max_seq_length
         self.self_attention = Attention(hidden_size, nhead, dropout)
+
         self.fc_t = nn.Sequential(nn.Linear(hidden_size, dim_feedforward), nn.ReLU(), nn.Linear(dim_feedforward, hidden_size))
         self.fc_a = nn.Sequential(nn.Linear(hidden_size, dim_feedforward), nn.ReLU(), nn.Linear(dim_feedforward, hidden_size))
         self.fc_v = nn.Sequential(nn.Linear(hidden_size, dim_feedforward), nn.ReLU(), nn.Linear(dim_feedforward, hidden_size))
@@ -266,6 +267,7 @@ class HKTMultiLayerCrossAttn(nn.Module):
         self.visual_model = visual_model
         self.acoustic_model = acoustic_model
         self.hcf_model = hcf_model
+
         
         L_AV_layer = CrossAttentionLayer((LANGUAGE_DIM+HCF_DIM), ACOUSTIC_DIM+VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
         self.L_AV = CrossAttentionEncoder(L_AV_layer, args.cross_n_layers)
@@ -342,6 +344,8 @@ class HKT(nn.Module):
         self.visual_projection = nn.Linear(VISUAL_DIM, LANGUAGE_DIM)
         self.acoustic_projection = nn.Linear(ACOUSTIC_DIM, LANGUAGE_DIM)
         self.hcf_projection = nn.Linear(HCF_DIM, LANGUAGE_DIM)
+        self.text_decoder = nn.Linear(LANGUAGE_DIM, 1)
+
 
         #concat horizontally (Sep already added as zeros)
         #create MOME transformer
@@ -349,9 +353,14 @@ class HKT(nn.Module):
         self.shared_transformer = TransformerEncoder(shared_layer, num_layers=args.cross_n_layers)
         
         #total dim for fusion is T (all modalities projected to T)
-        total_dim =  4*(LANGUAGE_DIM)
+        total_dim_shared =  4*(LANGUAGE_DIM)
 
-        self.fusion_fc = nn.Sequential(nn.Linear(total_dim, args.fusion_dim), 
+        self.shared_fusion_fc = nn.Sequential(nn.Linear(total_dim_shared, args.fusion_dim), 
+                                       nn.ReLU(), 
+                                       nn.Dropout(args.dropout), 
+                                       nn.Linear(args.fusion_dim, 1))
+
+        self.fusion_fc = nn.Sequential(nn.Linear(5, args.fusion_dim), 
                                        nn.ReLU(), 
                                        nn.Dropout(args.dropout), 
                                        nn.Linear(args.fusion_dim, 1))
@@ -362,18 +371,18 @@ class HKT(nn.Module):
         acoustic_params=list(self.acoustic_model.named_parameters())
         visual_params=list(self.visual_model.named_parameters())
         hcf_params=list(self.hcf_model.named_parameters())
-        text_params = list(self.text_model.named_parameters())
+        text_params = list(self.text_model.named_parameters()) + list(self.text_decoder.named_parameters())
         
-        other_params=list(self.shared_transformer.named_parameters())+list(self.fusion_fc.named_parameters())
+        other_params=list(self.shared_transformer.named_parameters())+list(self.fusion_fc.named_parameters()) + list(self.shared_fusion_fc.named_parameters())
         
         return acoustic_params,visual_params,text_params,hcf_params,other_params
     
 
     def forward(self, input_ids, visual, acoustic, hcf, attention_mask=None, token_type_ids=None):
         text_output = self.text_model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids).last_hidden_state
-        (_, _, visual_output) = self.visual_model(visual)
-        (_, _, acoustic_output) = self.acoustic_model(acoustic)
-        (_, _, hcf_output) = self.hcf_model(hcf)
+        (v_cls, _, visual_output) = self.visual_model(visual)
+        (a_cls, _, acoustic_output) = self.acoustic_model(acoustic)
+        (h_cls, _, hcf_output) = self.hcf_model(hcf)
         
         # Project vah to text dimension
         v_tokens = self.visual_projection(visual_output) 
@@ -391,23 +400,29 @@ class HKT(nn.Module):
         a_len = a_tokens.size(1)
         h_len = h_tokens.size(1)
         
-        text_cls = all_features_embedding[:, 0, :]
+        text_cls = text_output[:, 0, :]
+        text_pred = self.text_decoder(text_cls)
+
+        text_cls_after_shared = all_features_embedding[:, 0, :]
         # text_seq_after_shared = all_features_embedding[:, :text_len, :]
         v_seq_after_shared = all_features_embedding[:, text_len:text_len + v_len, :]
         a_seq_after_shared = all_features_embedding[:, text_len + v_len:text_len + v_len + a_len, :]
         h_seq_after_shared = all_features_embedding[:, text_len + v_len + a_len:, :]
         
-        # Max pooling each sequence
+        # Max pooling each sequence from shared transformer
         # text_pooled = F.max_pool1d(text_seq_after_shared.permute(0, 2, 1), kernel_size=text_seq_after_shared.size(1)).squeeze(-1)
         v_pooled = F.max_pool1d(v_seq_after_shared.permute(0, 2, 1), kernel_size=v_seq_after_shared.size(1)).squeeze(-1)
         a_pooled = F.max_pool1d(a_seq_after_shared.permute(0, 2, 1), kernel_size=a_seq_after_shared.size(1)).squeeze(-1)
         h_pooled = F.max_pool1d(h_seq_after_shared.permute(0, 2, 1), kernel_size=h_seq_after_shared.size(1)).squeeze(-1)
         
-        fused_output = torch.cat([text_cls, v_pooled, a_pooled, h_pooled], dim=1)
-        fused_result = self.fusion_fc(fused_output)
+        fused_multimodal_output = torch.cat([text_cls_after_shared, v_pooled, a_pooled, h_pooled], dim=1)
+        fused_multimodal_prediction_result = self.shared_fusion_fc(fused_multimodal_output)
+
+        late_fuse_uni_multi_prediction = torch.cat([text_pred, v_cls,a_cls,h_cls,fused_multimodal_prediction_result])
+        out = self.fusion_fc(late_fuse_uni_multi_prediction)
 
 
-        return (fused_result, fused_output)
+        return (out, late_fuse_uni_multi_prediction)
 
 
 
