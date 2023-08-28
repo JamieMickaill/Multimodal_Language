@@ -418,7 +418,7 @@ class HKT(nn.Module):
         fused_multimodal_output = torch.cat([text_cls_after_shared, v_pooled, a_pooled, h_pooled], dim=1)
         fused_multimodal_prediction_result = self.shared_fusion_fc(fused_multimodal_output)
 
-        late_fuse_uni_multi_prediction = torch.cat([text_pred, v_cls,a_cls,h_cls,fused_multimodal_prediction_result])
+        late_fuse_uni_multi_prediction = torch.cat([text_pred, v_cls,a_cls,h_cls,fused_multimodal_prediction_result],dim=1)
         out = self.fusion_fc(late_fuse_uni_multi_prediction)
 
 
