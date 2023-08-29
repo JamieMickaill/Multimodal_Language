@@ -294,7 +294,7 @@ class HKT(nn.Module):
         self.shared_transformer = TransformerEncoder(shared_layer, num_layers=args.cross_n_layers)
         
         #total dim for fusion is  (all modalities )
-        total_dim =  (LANGUAGE_DIM+VISUAL_DIM+ACOUSTIC_DIM+HCF_DIM)*args.max_seq_length
+        total_dim =  (LANGUAGE_DIM+VISUAL_DIM+ACOUSTIC_DIM+HCF_DIM)
 
         self.fusion_fc = nn.Sequential(nn.Linear(total_dim, args.fusion_dim), 
                                        nn.ReLU(), 
