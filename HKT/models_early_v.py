@@ -294,7 +294,7 @@ class HKT(nn.Module):
         self.shared_transformer = TransformerEncoder(shared_layer, num_layers=args.cross_n_layers)
         
         #total dim for fusion is  (all modalities )
-        total_dim =  (LANGUAGE_DIM+VISUAL_DIM+ACOUSTIC_DIM+HCF_DIM)
+        total_dim =  (LANGUAGE_DIM+VISUAL_DIM+ACOUSTIC_DIM+HCF_DIM)*2
 
         self.fusion_fc = nn.Sequential(nn.Linear(total_dim, args.fusion_dim), 
                                        nn.ReLU(), 
@@ -329,7 +329,12 @@ class HKT(nn.Module):
         
         all_features_embedding = self.shared_transformer(all_features_comb)
 
-        fused_result = self.fusion_fc(all_features_embedding)
+        maxP = F.max_pool1d(all_features_embedding.permute(0,2,1).contiguous(), all_features_embedding.shape[1]).squeeze(-1)
+        avgP = F.avg_pool1d(all_features_embedding.permute(0,2,1).contiguous(), all_features_embedding.shape[1]).squeeze(-1)
+
+        avg_max = torch.cat((maxP,avgP),dim=1)
+
+        fused_result = self.fusion_fc(avg_max)
 
 
         return (fused_result, all_features_embedding)
