@@ -36,7 +36,7 @@ from transformers import (
     BertTokenizer,
     get_linear_schedule_with_warmup,
 )
-from models_early import *
+from models_early_v import *
 from transformers.optimization import AdamW
 
 
@@ -716,7 +716,7 @@ def set_random_seed(seed):
 
 def main():
     
-    wandb.init(project="Fusion", group="early")
+    wandb.init(project="Fusion_Final", group="early_v")
     wandb.config.update(args)
     
     if(args.seed == -1):

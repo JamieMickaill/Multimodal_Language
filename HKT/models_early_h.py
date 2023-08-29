@@ -279,22 +279,22 @@ class HKT(nn.Module):
     def __init__(self, text_model, visual_model, acoustic_model, hcf_model, args, dropout=0.1, fusion_dim=128):
         super(HKT, self).__init__()
         
-        # self.seq_len = args.max_seq_length
+        self.seq_len = args.max_seq_length
 
         self.newly_added_config=args
         self.text_model = text_model
 
         #proj for concat horizontal
-        # self.visual_projection = nn.Linear(VISUAL_DIM, LANGUAGE_DIM)
-        # self.acoustic_projection = nn.Linear(ACOUSTIC_DIM, LANGUAGE_DIM)
-        # self.hcf_projection = nn.Linear(HCF_DIM, LANGUAGE_DIM)
+        self.visual_projection = nn.Linear(VISUAL_DIM, LANGUAGE_DIM)
+        self.acoustic_projection = nn.Linear(ACOUSTIC_DIM, LANGUAGE_DIM)
+        self.hcf_projection = nn.Linear(HCF_DIM, LANGUAGE_DIM)
 
         #concat vertical
-        shared_layer = TransformerLayer(LANGUAGE_DIM+VISUAL_DIM+ACOUSTIC_DIM+HCF_DIM, nhead=args.cross_n_heads, dropout=args.dropout, max_seq_length=self.seq_len)
+        shared_layer = TransformerLayer(LANGUAGE_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
         self.shared_transformer = TransformerEncoder(shared_layer, num_layers=args.cross_n_layers)
         
         #total dim for fusion is  (all modalities )
-        total_dim =  LANGUAGE_DIM+VISUAL_DIM+ACOUSTIC_DIM+HCF_DIM
+        total_dim =  LANGUAGE_DIM * self.seq_len * 4
 
         self.fusion_fc = nn.Sequential(nn.Linear(total_dim, args.fusion_dim), 
                                        nn.ReLU(), 
@@ -320,12 +320,12 @@ class HKT(nn.Module):
             t_tokens = self.text_model(input_ids).last_hidden_state
             
          # Project vah to text dimension
-        # v_tokens = self.visual_projection(visual) 
-        # a_tokens = self.acoustic_projection(acoustic) 
-        # h_tokens = self.hcf_projection(hcf)
+        v_tokens = self.visual_projection(visual) 
+        a_tokens = self.acoustic_projection(acoustic) 
+        h_tokens = self.hcf_projection(hcf)
 
         #concat vertically
-        all_features_comb = torch.cat((t_tokens, visual, acoustic, hcf), dim=2)
+        all_features_comb = torch.cat((t_tokens, v_tokens, a_tokens, h_tokens), dim=1)
         
         all_features_embedding = self.shared_transformer(all_features_comb)
 

@@ -719,7 +719,7 @@ def set_random_seed(seed):
 
 def main():
     
-    wandb.init(project="Fusion", group="shared")
+    wandb.init(project="Fusion_Final", group="Intermediate_Shared_Transformer_MAXPOOL")
     wandb.config.update(args)
     
     if(args.seed == -1):
