@@ -294,16 +294,16 @@ class HKT(nn.Module):
         self.shared_transformer = TransformerEncoder(shared_layer, num_layers=args.cross_n_layers)
         
         #total dim for fusion is  (all modalities )
-        total_dim =  LANGUAGE_DIM+VISUAL_DIM+ACOUSTIC_DIM+HCF_DIM
+        total_dim =  LANGUAGE_DIM+VISUAL_DIM+ACOUSTIC_DIM+HCF_DIM*args.max_seq_length
 
         self.fusion_fc = nn.Sequential(nn.Linear(total_dim, args.fusion_dim), 
                                        nn.ReLU(), 
                                        nn.Dropout(args.dropout), 
                                        nn.Linear(args.fusion_dim, 1))
+        
 
     #returns separate params for shared cross-modal encoder and text-encoder
     def get_params(self):
-        
 
         text_params = list(self.text_model.named_parameters())
         

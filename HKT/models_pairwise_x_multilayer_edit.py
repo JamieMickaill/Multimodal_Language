@@ -170,7 +170,7 @@ class CrossAttentionLayer(nn.Module):
         
         #combine cross attended features
         cross_src = torch.cat((new_src, new_context), dim=2)
-        #norm over inputs to self-attn
+        #norm over inputs to
         cross_src_0 = self.norm0_ch(cross_src)
         
         #self attn over cross attended features
