@@ -327,7 +327,7 @@ class HKT(nn.Module):
 
         text_params = list(self.text_model.named_parameters())
         
-        other_params=list(self.shared_transformer.named_parameters())+list(self.fusion_fc.named_parameters())  +list(self.pos_encoder.named_parameters()) +list(self.norm.named_parameters())
+        other_params=list(self.shared_transformer.named_parameters())+list(self.fc.named_parameters())  +list(self.pos_encoder.named_parameters()) +list(self.norm.named_parameters())
         
         return text_params,other_params
     

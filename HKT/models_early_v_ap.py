@@ -299,7 +299,7 @@ class HKT(nn.Module):
         #total dim for fusion is  (all modalities )
         total_dim =  (LANGUAGE_DIM+VISUAL_DIM+ACOUSTIC_DIM+HCF_DIM)
 
-        self.fusion_fc = nn.Sequential(nn.Linear(total_dim, args.fusion_dim), 
+        self.fc = nn.Sequential(nn.Linear(total_dim, args.fusion_dim), 
                                        nn.ReLU(), 
                                        nn.Dropout(args.dropout), 
                                        nn.Linear(args.fusion_dim, 1))
@@ -310,7 +310,7 @@ class HKT(nn.Module):
 
         text_params = list(self.text_model.named_parameters())
         
-        other_params=list(self.shared_transformer.named_parameters())+list(self.fusion_fc.named_parameters())  +list(self.pos_encoder.named_parameters()) +list(self.norm.named_parameters())
+        other_params=list(self.shared_transformer.named_parameters())+list(self.fc.named_parameters())  +list(self.pos_encoder.named_parameters()) +list(self.norm.named_parameters())
         
         return text_params,other_params
     
@@ -335,7 +335,7 @@ class HKT(nn.Module):
         # maxP = F.max_pool1d(all_features_embedding.permute(0,2,1).contiguous(), all_features_embedding.shape[1]).squeeze(-1)
         avgP = F.avg_pool1d(all_features_embedding.permute(0,2,1).contiguous(), all_features_embedding.shape[1]).squeeze(-1)
 
-        fused_result = self.fusion_fc(avgP)
+        fused_result = self.fc(avgP)
 
 
         return (fused_result, all_features_embedding)
