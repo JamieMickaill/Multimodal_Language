@@ -305,11 +305,7 @@ class HKT(nn.Module):
 
         self.newly_added_config=args
         self.text_model = text_model
-        # self.decoder = nn.Linear(self.d_model,1)
-        #proj for concat horizontal
-        # self.visual_projection = nn.Linear(VISUAL_DIM, LANGUAGE_DIM)
-        # self.acoustic_projection = nn.Linear(ACOUSTIC_DIM, LANGUAGE_DIM)
-        # self.hcf_projection = nn.Linear(HCF_DIM, LANGUAGE_DIM)
+
 
         #concat vertical
         shared_layer = TransformerLayer(self.d_model, nhead=args.cross_n_heads, dropout=args.dropout)
@@ -352,7 +348,7 @@ class HKT(nn.Module):
         input = self.norm(all_features_comb)
         
         #self-attn over combined seq
-        all_features_embedding = self.shared_transformer(input,attention_mask=attention_mask)
+        all_features_embedding = self.shared_transformer(input)
 
         #CLS token -> FC layer with activation and dropout
         out = self.fc(all_features_embedding[:,0,:])
