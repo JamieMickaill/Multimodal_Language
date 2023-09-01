@@ -344,8 +344,8 @@ class HKT(nn.Module):
 
         #add positional embeddings
         seq_length = all_features_comb.size()[1]
-        position_ids = torch.arange(seq_length, dtype=torch.long, device=input.device)
-        positions_embedding = self.pos_encoder(position_ids).unsqueeze(0).expand(input.size()) # (seq_length, d_model) => (batch_size, seq_length, d_model)
+        position_ids = torch.arange(seq_length, dtype=torch.long, device=all_features_comb.device)
+        positions_embedding = self.pos_encoder(position_ids).unsqueeze(0).expand(all_features_comb.size()) # (seq_length, d_model) => (batch_size, seq_length, d_model)
         all_features_comb = all_features_comb + positions_embedding
 
         #norm before self-attn

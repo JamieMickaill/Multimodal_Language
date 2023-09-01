@@ -321,16 +321,21 @@ class HKT(nn.Module):
         # Pass through the model to get embeddings
         with torch.no_grad():  # To disable gradient calculations during inference
             t_tokens = self.text_model(input_ids).last_hidden_state
-            
-         # Project vah to text dimension
-        # v_tokens = self.visual_projection(visual) 
-        # a_tokens = self.acoustic_projection(acoustic) 
-        # h_tokens = self.hcf_projection(hcf)
-
-        #concat vertically
-        all_features_comb = torch.cat((t_tokens, visual, acoustic, hcf), dim=2)
         
-        all_features_embedding = self.shared_transformer(all_features_comb)
+        all_features_comb = torch.cat((t_tokens, visual, acoustic, hcf), dim=2)
+
+            
+        #add positional embeddings
+        seq_length = all_features_comb.size()[1]
+        position_ids = torch.arange(seq_length, dtype=torch.long, device=all_features_comb.device)
+        positions_embedding = self.pos_encoder(position_ids).unsqueeze(0).expand(all_features_comb.size()) # (seq_length, d_model) => (batch_size, seq_length, d_model)
+        all_features_comb = all_features_comb + positions_embedding
+
+        #norm before self-attn
+        input = self.norm(all_features_comb)
+        #concat vertically
+        
+        all_features_embedding = self.shared_transformer(input)
 
         # maxP = F.max_pool1d(all_features_embedding.permute(0,2,1).contiguous(), all_features_embedding.shape[1]).squeeze(-1)
         avgP = F.avg_pool1d(all_features_embedding.permute(0,2,1).contiguous(), all_features_embedding.shape[1]).squeeze(-1)
