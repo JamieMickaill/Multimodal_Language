@@ -329,11 +329,7 @@ class HKT(nn.Module):
         
         all_features_embedding = self.shared_transformer(all_features_comb)
 
-        # maxP = F.max_pool1d(all_features_embedding.permute(0,2,1).contiguous(), all_features_embedding.shape[1]).squeeze(-1)
-        # avgP = F.avg_pool1d(all_features_embedding.permute(0,2,1).contiguous(), all_features_embedding.shape[1]).squeeze(-1)
-
-        # avg_max = torch.cat((maxP,avgP),dim=1)
-
+        #CLS token -> FC layer with activation and dropout
         fused_result = self.fusion_fc(all_features_embedding[:,0,:])
 
 
