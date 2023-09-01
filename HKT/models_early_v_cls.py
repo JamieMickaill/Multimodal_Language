@@ -273,6 +273,25 @@ class HKTMultiLayerCrossAttn(nn.Module):
 
 
 
+# class Transformer(nn.Module):
+#     def __init__(self, d_model, num_layers=1, nhead=1, dropout=0.1, dim_feedforward=128, max_seq_length=5000):
+#         super(Transformer, self).__init__()
+#         self.d_model = d_model
+#         self.pos_encoder = nn.Embedding(max_seq_length, d_model)
+#         self.encoder = TransformerEncoder(TransformerLayer(d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=dropout), num_layers=num_layers)
+#         self.decoder = nn.Linear(d_model, 1)
+#         self.norm = nn.LayerNorm(d_model)
+
+#     def forward(self, input, attention_mask=None):
+#         seq_length = input.size()[1]
+#         position_ids = torch.arange(seq_length, dtype=torch.long, device=input.device)
+#         positions_embedding = self.pos_encoder(position_ids).unsqueeze(0).expand(input.size()) # (seq_length, d_model) => (batch_size, seq_length, d_model)
+#         input = input + positions_embedding
+#         input = self.norm(input)
+#         hidden = self.encoder(input, attention_mask=attention_mask)
+#         out = self.decoder(hidden) # (batch_size, seq_len, hidden_dim)
+#         out = (out[:,0,:], out, hidden) # ([CLS] token embedding, full output, last hidden layer)
+#         return out
 
 #early fusion no unimodal encoders
 class HKT(nn.Module):
@@ -280,23 +299,23 @@ class HKT(nn.Module):
         super(HKT, self).__init__()
         
         # self.seq_len = args.max_seq_length
-
+        self.d_model = (LANGUAGE_DIM+VISUAL_DIM+ACOUSTIC_DIM+HCF_DIM)
+        self.pos_encoder = nn.Embedding(args.max_seq_length, self.d_model)
         self.newly_added_config=args
         self.text_model = text_model
-
+        self.norm = nn.LayerNorm(self.d_model)
+        # self.decoder = nn.Linear(self.d_model,1)
         #proj for concat horizontal
         # self.visual_projection = nn.Linear(VISUAL_DIM, LANGUAGE_DIM)
         # self.acoustic_projection = nn.Linear(ACOUSTIC_DIM, LANGUAGE_DIM)
         # self.hcf_projection = nn.Linear(HCF_DIM, LANGUAGE_DIM)
 
         #concat vertical
-        shared_layer = TransformerLayer(LANGUAGE_DIM+VISUAL_DIM+ACOUSTIC_DIM+HCF_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        shared_layer = TransformerLayer(self.d_model, nhead=args.cross_n_heads, dropout=args.dropout)
         self.shared_transformer = TransformerEncoder(shared_layer, num_layers=args.cross_n_layers)
         
-        #total dim for fusion is  (all modalities )
-        total_dim =  (LANGUAGE_DIM+VISUAL_DIM+ACOUSTIC_DIM+HCF_DIM)
 
-        self.fusion_fc = nn.Sequential(nn.Linear(total_dim, args.fusion_dim), 
+        self.fc = nn.Sequential(nn.Linear(self.d_model, args.fusion_dim), 
                                        nn.ReLU(), 
                                        nn.Dropout(args.dropout), 
                                        nn.Linear(args.fusion_dim, 1))
@@ -307,7 +326,7 @@ class HKT(nn.Module):
 
         text_params = list(self.text_model.named_parameters())
         
-        other_params=list(self.shared_transformer.named_parameters())+list(self.fusion_fc.named_parameters())
+        other_params=list(self.shared_transformer.named_parameters())+list(self.fc.named_parameters())
         
         return text_params,other_params
     
@@ -315,25 +334,30 @@ class HKT(nn.Module):
     def forward(self, input_ids, visual, acoustic, hcf, attention_mask=None, token_type_ids=None):
 
         
-        # Pass through the model to get embeddings
+        # Pass through the model to get BERT embeddings
         with torch.no_grad():  # To disable gradient calculations during inference
             t_tokens = self.text_model(input_ids).last_hidden_state
             
-         # Project vah to text dimension
-        # v_tokens = self.visual_projection(visual) 
-        # a_tokens = self.acoustic_projection(acoustic) 
-        # h_tokens = self.hcf_projection(hcf)
-
         #concat vertically
         all_features_comb = torch.cat((t_tokens, visual, acoustic, hcf), dim=2)
+
+        #add positional embeddings
+        seq_length = all_features_comb.size()[1]
+        position_ids = torch.arange(seq_length, dtype=torch.long, device=input.device)
+        positions_embedding = self.pos_encoder(position_ids).unsqueeze(0).expand(input.size()) # (seq_length, d_model) => (batch_size, seq_length, d_model)
+        all_features_comb = all_features_comb + positions_embedding
+
+        #norm before self-attn
+        input = self.norm(all_features_comb)
         
-        all_features_embedding = self.shared_transformer(all_features_comb)
+        #self-attn over combined seq
+        all_features_embedding = self.shared_transformer(input,attention_mask=attention_mask)
 
         #CLS token -> FC layer with activation and dropout
-        fused_result = self.fusion_fc(all_features_embedding[:,0,:])
+        out = self.fc(all_features_embedding[:,0,:])
 
 
-        return (fused_result, all_features_embedding)
+        return (out, all_features_embedding)
 
 
 
