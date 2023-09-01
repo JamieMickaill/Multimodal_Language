@@ -231,7 +231,7 @@ class HKTMultiLayerCrossAttn(nn.Module):
         visual_params=list(self.visual_model.named_parameters())
         hcf_params=list(self.hcf_model.named_parameters())
         
-        other_params=list(self.text_model.named_parameters())+list(self.L_AV.named_parameters())+list(self.fc.named_parameters())
+        other_params=list(self.shared_transformer.named_parameters())+list(self.fusion_fc.named_parameters())  +list(self.pos_encoder.named_parameters()) +list(self.norm.named_parameters())
         
         return acoustic_params,visual_params,hcf_params,other_params
     
@@ -310,7 +310,7 @@ class HKT(nn.Module):
 
         text_params = list(self.text_model.named_parameters())
         
-        other_params=list(self.shared_transformer.named_parameters())+list(self.fusion_fc.named_parameters())  +list(self.pos_encoder.named_parameters) +list(self.norm.named_parameters())
+        other_params=list(self.shared_transformer.named_parameters())+list(self.fusion_fc.named_parameters())  +list(self.pos_encoder.named_parameters()) +list(self.norm.named_parameters())
         
         return text_params,other_params
     
