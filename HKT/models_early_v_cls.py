@@ -332,8 +332,8 @@ class HKT(nn.Module):
 
         
         # Pass through the model to get BERT embeddings
-        with torch.no_grad():  # To disable gradient calculations during inference
-            t_tokens = self.text_model(input_ids).last_hidden_state
+        # with torch.no_grad():  # To disable gradient calculations during inference
+        t_tokens = self.text_model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids).last_hidden_state
             
         #concat vertically
         all_features_comb = torch.cat((t_tokens, visual, acoustic, hcf), dim=2)
