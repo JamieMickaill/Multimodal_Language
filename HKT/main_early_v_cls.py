@@ -549,6 +549,8 @@ def train(
     valid_losses = []
     
     n_epochs=args.epochs
+    patience = 5  # Define your patience value here
+    epochs_without_improvement = 0
         
     
     for epoch_i in range(n_epochs):
@@ -574,9 +576,17 @@ def train(
             best_valid_loss = valid_loss
             best_valid_test_accuracy = test_accuracy
             best_valid_test_fscore= test_f_score
+            epochs_without_improvement = 0
             
             if(args.save_weight == "True"):
                 torch.save(model.state_dict(),'./best_weights/'+run_name+'.pt')
+        else:
+            epochs_without_improvement +=1
+            
+        # If epochs without improvement exceeds patience, stop training
+        if epochs_without_improvement >= patience:
+            print("Early stopping triggered")
+            break
         
         #we report test_accuracy of the best valid loss (best_valid_test_accuracy)
         wandb.log(
