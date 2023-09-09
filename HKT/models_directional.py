@@ -320,9 +320,9 @@ class HKT(nn.Module):
 
 
         text_audio_cross_attention_layer = DirectionalCrossAttentionLayer(LANGUAGE_DIM+HCF_DIM, ACOUSTIC_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
-        self.text_audio_cross_attention = CrossAttentionEncoder(text_audio_cross_attention_layer,args.cross_n_layers)
+        self.text_audio_cross_attention = TransformerEncoder(text_audio_cross_attention_layer,args.cross_n_layers)
         text_visual_cross_attention_layer = DirectionalCrossAttentionLayer(LANGUAGE_DIM+HCF_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
-        self.text_visual_cross_attention = CrossAttentionEncoder(text_visual_cross_attention_layer,args.cross_n_layers)
+        self.text_visual_cross_attention = TransformerEncoder(text_visual_cross_attention_layer,args.cross_n_layers)
 
         #total dim 
         total_dim =  3*(LANGUAGE_DIM+HCF_DIM) 
