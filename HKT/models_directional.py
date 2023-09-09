@@ -88,6 +88,15 @@ class TransformerEncoder(nn.Module):
             src = src + new_src
         return src
 
+class TransformerEncoder2(nn.Module):
+    def __init__(self, layer, num_layers):
+        super(TransformerEncoder2, self).__init__()
+        self.layers = _get_clones(layer, num_layers)
+    def forward(self, src,target, attention_mask=None):
+        for layer in self.layers:
+            new_src = layer(src,target, attention_mask=attention_mask)
+            src = src + new_src
+        return src
 
 class Attention(nn.Module):
     def __init__(self, hidden_size, num_attention_heads, attention_probs_dropout_prob, ctx_dim=None):
@@ -320,9 +329,9 @@ class HKT(nn.Module):
 
 
         text_audio_cross_attention_layer = DirectionalCrossAttentionLayer(LANGUAGE_DIM+HCF_DIM, ACOUSTIC_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
-        self.text_audio_cross_attention = TransformerEncoder(text_audio_cross_attention_layer,args.cross_n_layers)
+        self.text_audio_cross_attention = TransformerEncoder2(text_audio_cross_attention_layer,args.cross_n_layers)
         text_visual_cross_attention_layer = DirectionalCrossAttentionLayer(LANGUAGE_DIM+HCF_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
-        self.text_visual_cross_attention = TransformerEncoder(text_visual_cross_attention_layer,args.cross_n_layers)
+        self.text_visual_cross_attention = TransformerEncoder2(text_visual_cross_attention_layer,args.cross_n_layers)
 
         #total dim 
         total_dim =  3*(LANGUAGE_DIM+HCF_DIM) 
