@@ -355,12 +355,12 @@ class HKT(nn.Module):
         text_hcf=torch.cat((text_output,hcf_output),dim=2)
         
         # attention mask conversion
-        extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
-        extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
-        extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
+        # extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
+        # extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
+        # extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
         
-        text_audio_comb = self.text_audio_cross_attention(text_hcf, acoustic_output, attention_mask=extended_attention_mask)
-        text_visual_comb = self.text_visual_cross_attention(text_hcf, visual_output, attention_mask=extended_attention_mask)
+        text_audio_comb = self.text_audio_cross_attention(text_hcf, acoustic_output, attention_mask=attention_mask)
+        text_visual_comb = self.text_visual_cross_attention(text_hcf, visual_output, attention_mask=attention_mask)
         # audio_visual_comb = self.audio_visual_cross_attention(acoustic_output, visual_output, attention_mask=extended_attention_mask)
 
         # Extract embeddings
