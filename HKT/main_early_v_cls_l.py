@@ -726,7 +726,7 @@ def set_random_seed(seed):
 
 def main():
     
-    wandb.init(project="Fusion_Final", group="early_v_cls_ft_bert")
+    wandb.init(project="Fusion_Final", group="early_v_cls_ft_bert_linear")
     wandb.config.update(args)
     
     if(args.seed == -1):
