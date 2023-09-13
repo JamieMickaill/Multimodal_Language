@@ -337,7 +337,7 @@ class HKT(nn.Module):
         hcf_pred = h_cls
 
         # print(text_pred, visual_pred, acoustic_pred, hcf_pred)
-        concatenated_predictions = torch.cat((torch.Sigmoid(text_pred), torch.Sigmoid(visual_pred), torch.Sigmoid(acoustic_pred), torch.Sigmoid(hcf_pred)), dim=1)
+        concatenated_predictions = torch.cat((torch.sigmoid(text_pred), torch.sigmoid(visual_pred), torch.sigmoid(acoustic_pred), torch.sigmoid(hcf_pred)), dim=1)
         
         # Get final prediction through the late fusion layer
         final_prediction = self.late_fusion_layer(concatenated_predictions)
