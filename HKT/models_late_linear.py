@@ -294,7 +294,6 @@ class HKT(nn.Module):
         # decoder output from t/a/v/h encoders is already 1D
         self.text_decoder = nn.Linear(LANGUAGE_DIM, 1)
 
-
         
         # Late fusion layer: Combine individual modality predictions
         self.late_fusion_layer = nn.Linear(4, 1)
@@ -337,7 +336,7 @@ class HKT(nn.Module):
         hcf_pred = h_cls
 
         # print(text_pred, visual_pred, acoustic_pred, hcf_pred)
-        concatenated_predictions = torch.cat((torch.sigmoid(text_pred), torch.sigmoid(visual_pred), torch.sigmoid(acoustic_pred), torch.sigmoid(hcf_pred)), dim=1)
+        concatenated_predictions = torch.cat((text_pred, visual_pred, acoustic_pred, hcf_pred), dim=1)
         
         # Get final prediction through the late fusion layer
         final_prediction = self.late_fusion_layer(concatenated_predictions)
