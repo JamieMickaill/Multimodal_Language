@@ -750,7 +750,7 @@ def set_random_seed(seed):
 
 def main():
     
-    wandb.init(project="Fusion_Final", group="late_linear_sigmoid")
+    wandb.init(project="Fusion_Final", group="late_linear_ablation")
     wandb.config.update(args)
     
     if(args.seed == -1):
