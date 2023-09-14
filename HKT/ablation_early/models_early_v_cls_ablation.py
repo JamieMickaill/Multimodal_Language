@@ -489,7 +489,7 @@ class HKT_no_V(nn.Module):
 #early fusion no unimodal encoders
 class HKT_no_H(nn.Module):
     def __init__(self, text_model, visual_model, acoustic_model, hcf_model, args, dropout=0.1, fusion_dim=128):
-        super(HKT, self).__init__()
+        super(HKT_no_H, self).__init__()
         
         # self.seq_len = args.max_seq_length
         self.d_model = (LANGUAGE_DIM+VISUAL_DIM+ACOUSTIC_DIM)

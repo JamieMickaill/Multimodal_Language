@@ -579,7 +579,7 @@ class HKT_no_c3(nn.Module):
 
 class HKT_no_a(nn.Module):
     def __init__(self, text_model, visual_model, acoustic_model, hcf_model, args, dropout=0.1, fusion_dim=128):
-        super(HKT, self).__init__()
+        super(HKT_no_a, self).__init__()
         
         self.newly_added_config=args
         self.text_model = text_model
@@ -654,7 +654,7 @@ class HKT_no_a(nn.Module):
 
 class HKT_no_v(nn.Module):
     def __init__(self, text_model, visual_model, acoustic_model, hcf_model, args, dropout=0.1, fusion_dim=128):
-        super(HKT, self).__init__()
+        super(HKT_no_v, self).__init__()
         
         self.newly_added_config=args
         self.text_model = text_model
@@ -729,7 +729,7 @@ class HKT_no_v(nn.Module):
 
 class HKT_no_h(nn.Module):
     def __init__(self, text_model, visual_model, acoustic_model, hcf_model, args, dropout=0.1, fusion_dim=128):
-        super(HKT, self).__init__()
+        super(HKT_no_h, self).__init__()
         
         self.newly_added_config=args
         self.text_model = text_model
@@ -805,7 +805,7 @@ class HKT_no_h(nn.Module):
 
 class HKT_no_t(nn.Module):
     def __init__(self, text_model, visual_model, acoustic_model, hcf_model, args, dropout=0.1, fusion_dim=128):
-        super(HKT, self).__init__()
+        super(HKT_no_t, self).__init__()
         
         self.newly_added_config=args
         # self.text_model = text_model
