@@ -844,13 +844,13 @@ class HKT_no_t(nn.Module):
     
     def forward(self, input_ids, visual, acoustic,hcf, attention_mask=None, token_type_ids=None):
         
-        text_output = self.text_model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids).last_hidden_state
+        # text_output = self.text_model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids).last_hidden_state
         (_, _, visual_output) = self.visual_model(visual)
         (_, _, acoustic_output) = self.acoustic_model(acoustic)
         (_, _, hcf_output) = self.hcf_model(hcf)
         
         
-        text_hcf=torch.cat((text_output,hcf_output),dim=2)
+        # text_hcf=torch.cat((text_output,hcf_output),dim=2)
         
         # attention mask conversion
         extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
@@ -862,7 +862,7 @@ class HKT_no_t(nn.Module):
         audio_visual_comb = self.audio_visual_cross_attention(acoustic_output, visual_output, attention_mask=extended_attention_mask)
 
         # Extract embeddings
-        text_embedding = text_hcf[:,0,:] # [CLS] token
+        text_embedding = hcf_output[:,0,:] # [CLS] token
         visual_embedding = F.max_pool1d(visual_output.permute(0,2,1).contiguous(), visual_output.shape[1]).squeeze(-1)
         acoustic_embedding = F.max_pool1d(acoustic_output.permute(0,2,1).contiguous(),acoustic_output.shape[1]).squeeze(-1)
         

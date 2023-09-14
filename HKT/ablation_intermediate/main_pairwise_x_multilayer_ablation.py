@@ -683,7 +683,7 @@ def prep_for_training(num_training_steps):
             model = HKT_no_a(text_model, visual_model, acoustic_model,hcf_model, args)
 
         elif args.include_t=="n":
-            model = HKT_no_t(text_model, visual_model, acoustic_model,hcf_model, args)
+            model = HKT_no_t( visual_model, acoustic_model,hcf_model, args)
 
         elif args.include_h=="n":
             model = HKT_no_h(text_model, visual_model, acoustic_model,hcf_model, args)
