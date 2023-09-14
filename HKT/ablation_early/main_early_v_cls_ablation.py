@@ -701,13 +701,23 @@ def prep_for_training(num_training_steps):
     # used different learning rates for different componenets.
     
     if args.model == "HKT" :
-        
-        text_params,other_params = model.get_params()
-        optimizer_o,scheduler_o=get_optimizer_scheduler(other_params,num_training_steps,learning_rate=args.learning_rate)
-        optimizer_t,scheduler_t=get_optimizer_scheduler(text_params,num_training_steps,learning_rate=args.learning_rate_t)
 
-        optimizers=[optimizer_o,optimizer_t]
-        schedulers=[scheduler_o,scheduler_t]
+        if args.include_t == "n":
+                    other_params = model.get_params()
+                    optimizer_o,scheduler_o=get_optimizer_scheduler(other_params,num_training_steps,learning_rate=args.learning_rate)
+
+                    optimizers=[optimizer_o]
+                    schedulers=[scheduler_o]
+        
+        else:
+
+        
+            text_params,other_params = model.get_params()
+            optimizer_o,scheduler_o=get_optimizer_scheduler(other_params,num_training_steps,learning_rate=args.learning_rate)
+            optimizer_t,scheduler_t=get_optimizer_scheduler(text_params,num_training_steps,learning_rate=args.learning_rate_t)
+
+            optimizers=[optimizer_o,optimizer_t]
+            schedulers=[scheduler_o,scheduler_t]
         
     else:
         params = list(model.named_parameters())

@@ -712,16 +712,62 @@ def prep_for_training(num_training_steps):
     # used different learning rates for different componenets.
     
     if args.model == "HKT" :
+
+        if args.include_v == "n":
+            acoustic_params,text_params,hcf_params,other_params = model.get_params()
+            optimizer_o,scheduler_o=get_optimizer_scheduler(other_params,num_training_steps,learning_rate=args.learning_rate)
+            optimizer_h,scheduler_h=get_optimizer_scheduler(hcf_params,num_training_steps,learning_rate=args.learning_rate_h)
+            # optimizer_v,scheduler_v=get_optimizer_scheduler(visual_params,num_training_steps,learning_rate=args.learning_rate_v)
+            optimizer_t,scheduler_t=get_optimizer_scheduler(text_params,num_training_steps,learning_rate=args.learning_rate_t)
+            optimizer_a,scheduler_a=get_optimizer_scheduler(acoustic_params,num_training_steps,learning_rate=args.learning_rate_a)
+            
+            optimizers=[optimizer_o,optimizer_h,optimizer_a,optimizer_t]
+            schedulers=[scheduler_o,scheduler_h,scheduler_a,scheduler_t]
         
-        acoustic_params,visual_params,text_params,hcf_params,other_params = model.get_params()
-        optimizer_o,scheduler_o=get_optimizer_scheduler(other_params,num_training_steps,learning_rate=args.learning_rate)
-        optimizer_h,scheduler_h=get_optimizer_scheduler(hcf_params,num_training_steps,learning_rate=args.learning_rate_h)
-        optimizer_v,scheduler_v=get_optimizer_scheduler(visual_params,num_training_steps,learning_rate=args.learning_rate_v)
-        optimizer_t,scheduler_t=get_optimizer_scheduler(text_params,num_training_steps,learning_rate=args.learning_rate_t)
-        optimizer_a,scheduler_a=get_optimizer_scheduler(acoustic_params,num_training_steps,learning_rate=args.learning_rate_a)
+        elif args.include_a == "n":
+            visual_params,text_params,hcf_params,other_params = model.get_params()
+            optimizer_o,scheduler_o=get_optimizer_scheduler(other_params,num_training_steps,learning_rate=args.learning_rate)
+            optimizer_h,scheduler_h=get_optimizer_scheduler(hcf_params,num_training_steps,learning_rate=args.learning_rate_h)
+            optimizer_v,scheduler_v=get_optimizer_scheduler(visual_params,num_training_steps,learning_rate=args.learning_rate_v)
+            optimizer_t,scheduler_t=get_optimizer_scheduler(text_params,num_training_steps,learning_rate=args.learning_rate_t)
+            # optimizer_a,scheduler_a=get_optimizer_scheduler(acoustic_params,num_training_steps,learning_rate=args.learning_rate_a)
+            
+            optimizers=[optimizer_o,optimizer_h,optimizer_v,optimizer_t]
+            schedulers=[scheduler_o,scheduler_h,scheduler_v,scheduler_t]
         
-        optimizers=[optimizer_o,optimizer_h,optimizer_v,optimizer_a,optimizer_t]
-        schedulers=[scheduler_o,scheduler_h,scheduler_v,scheduler_a,scheduler_t]
+        elif args.include_h == "n":
+        
+            acoustic_params,visual_params,text_params,other_params = model.get_params()
+            optimizer_o,scheduler_o=get_optimizer_scheduler(other_params,num_training_steps,learning_rate=args.learning_rate)
+            # optimizer_h,scheduler_h=get_optimizer_scheduler(hcf_params,num_training_steps,learning_rate=args.learning_rate_h)
+            optimizer_v,scheduler_v=get_optimizer_scheduler(visual_params,num_training_steps,learning_rate=args.learning_rate_v)
+            optimizer_t,scheduler_t=get_optimizer_scheduler(text_params,num_training_steps,learning_rate=args.learning_rate_t)
+            optimizer_a,scheduler_a=get_optimizer_scheduler(acoustic_params,num_training_steps,learning_rate=args.learning_rate_a)
+            
+            optimizers=[optimizer_o,optimizer_v,optimizer_a,optimizer_t]
+            schedulers=[scheduler_o,scheduler_v,scheduler_a,scheduler_t]
+
+        elif args.include_t == "n":
+            acoustic_params,visual_params,hcf_params,other_params = model.get_params()
+            optimizer_o,scheduler_o=get_optimizer_scheduler(other_params,num_training_steps,learning_rate=args.learning_rate)
+            optimizer_h,scheduler_h=get_optimizer_scheduler(hcf_params,num_training_steps,learning_rate=args.learning_rate_h)
+            optimizer_v,scheduler_v=get_optimizer_scheduler(visual_params,num_training_steps,learning_rate=args.learning_rate_v)
+            # optimizer_t,scheduler_t=get_optimizer_scheduler(text_params,num_training_steps,learning_rate=args.learning_rate_t)
+            optimizer_a,scheduler_a=get_optimizer_scheduler(acoustic_params,num_training_steps,learning_rate=args.learning_rate_a)
+            
+            optimizers=[optimizer_o,optimizer_h,optimizer_v,optimizer_a]
+            schedulers=[scheduler_o,scheduler_h,scheduler_v,scheduler_a]
+        else:
+        
+            acoustic_params,visual_params,text_params,hcf_params,other_params = model.get_params()
+            optimizer_o,scheduler_o=get_optimizer_scheduler(other_params,num_training_steps,learning_rate=args.learning_rate)
+            optimizer_h,scheduler_h=get_optimizer_scheduler(hcf_params,num_training_steps,learning_rate=args.learning_rate_h)
+            optimizer_v,scheduler_v=get_optimizer_scheduler(visual_params,num_training_steps,learning_rate=args.learning_rate_v)
+            optimizer_t,scheduler_t=get_optimizer_scheduler(text_params,num_training_steps,learning_rate=args.learning_rate_t)
+            optimizer_a,scheduler_a=get_optimizer_scheduler(acoustic_params,num_training_steps,learning_rate=args.learning_rate_a)
+            
+            optimizers=[optimizer_o,optimizer_h,optimizer_v,optimizer_a,optimizer_t]
+            schedulers=[scheduler_o,scheduler_h,scheduler_v,scheduler_a,scheduler_t]
         
     else:
         params = list(model.named_parameters())
