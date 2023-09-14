@@ -690,7 +690,6 @@ def prep_for_training(num_training_steps):
 
             model = HKT(text_model, visual_model, acoustic_model,hcf_model, args)
 
-        model = HKT(text_model, visual_model, acoustic_model,hcf_model, args)
 
     else:
         raise ValueError("Requested model is not available")
