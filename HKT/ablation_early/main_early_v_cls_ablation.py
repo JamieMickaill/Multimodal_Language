@@ -585,7 +585,7 @@ def train(
             if(args.save_weight == "True"):
                 torch.save(model.state_dict(),'./best_weights/'+run_name+'.pt')
         else:
-            epochs_without_improvement +=1
+            # epochs_without_improvement +=1
             
         # If epochs without improvement exceeds patience, stop training
         if epochs_without_improvement >= patience:
