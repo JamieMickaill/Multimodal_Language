@@ -578,11 +578,10 @@ class HKT_no_T(nn.Module):
     #returns separate params for shared cross-modal encoder and text-encoder
     def get_params(self):
 
-        text_params = list(self.text_model.named_parameters())
         
         other_params=list(self.shared_transformer.named_parameters())+list(self.fc.named_parameters())  +list(self.pos_encoder.named_parameters()) +list(self.norm.named_parameters())
         
-        return text_params,other_params
+        return other_params
     
 
     def forward(self, input_ids, visual, acoustic, hcf, attention_mask=None, token_type_ids=None):
