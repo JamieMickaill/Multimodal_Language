@@ -703,11 +703,11 @@ def prep_for_training(num_training_steps):
     if args.model == "HKT" :
 
         if args.include_t == "n":
-                    other_params = model.get_params()
-                    optimizer_o,scheduler_o=get_optimizer_scheduler(other_params,num_training_steps,learning_rate=args.learning_rate)
+            other_params = model.get_params()
+            optimizer_o,scheduler_o=get_optimizer_scheduler(other_params,num_training_steps,learning_rate=args.learning_rate)
 
-                    optimizers=[optimizer_o]
-                    schedulers=[scheduler_o]
+            optimizers=[optimizer_o,]
+            schedulers=[scheduler_o,]
         
         else:
 
