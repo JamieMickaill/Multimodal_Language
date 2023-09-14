@@ -804,7 +804,7 @@ class HKT_no_h(nn.Module):
 
 
 class HKT_no_t(nn.Module):
-    def __init__(self, text_model, visual_model, acoustic_model, hcf_model, args, dropout=0.1, fusion_dim=128):
+    def __init__(self, visual_model, acoustic_model, hcf_model, args, dropout=0.1, fusion_dim=128):
         super(HKT_no_t, self).__init__()
         
         self.newly_added_config=args
