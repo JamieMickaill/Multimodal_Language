@@ -8,10 +8,11 @@ DEVICE = torch.device("cuda:0")
 
 visual_features_list=list(range(55,91))
 acoustic_features_list=list(range(0,60))
+hcf_features_list = list(range(0,4))
 
 ACOUSTIC_DIM = len(acoustic_features_list)
 VISUAL_DIM = len(visual_features_list)
-HCF_DIM=4
+HCF_DIM=len(hcf_features_list)
 LANGUAGE_DIM=768
 
 VISUAL_DIM_ALL = 91
