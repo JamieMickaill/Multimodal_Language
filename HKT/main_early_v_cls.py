@@ -658,7 +658,7 @@ def prep_for_training(num_training_steps):
         #the model converege faster. Other wise it takes very long time to converge. 
 
         #unimodal models not used for early fusion
-        if args.dataset=="humor" or args.dataset=="humor_+" or args.dataset=="humor_new":
+        if args.dataset=="humor" or args.dataset=="humour_+" or args.dataset=="humour_new":
             visual_model = Transformer(VISUAL_DIM, num_layers=7, nhead=3, dim_feedforward= 128)
             visual_model.load_state_dict(torch.load("./model_weights/init/humor/humorVisualTransformer.pt"), strict=False)
             acoustic_model = Transformer(ACOUSTIC_DIM, num_layers=8, nhead=3, dim_feedforward = 256)

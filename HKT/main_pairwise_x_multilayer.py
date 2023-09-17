@@ -654,7 +654,7 @@ def prep_for_training(num_training_steps):
             hcf_model = Transformer(HCF_DIM, num_layers=3, nhead=2, dim_feedforward = 128)
             hcf_model.load_state_dict(torch.load("./model_weights/init/humor/humorHCFTransformer.pt"))
 
-        if args.dataset=="humor_new":
+        elif args.dataset=="humour_new":
             visual_model = Transformer(VISUAL_DIM, num_layers=7, nhead=3, dim_feedforward= 128)
             visual_model.load_state_dict(torch.load("./model_weights/init/humor/humorVisualTransformer.pt"))
             acoustic_model = Transformer(ACOUSTIC_DIM, num_layers=8, nhead=3, dim_feedforward = 256)
@@ -663,7 +663,7 @@ def prep_for_training(num_training_steps):
             hcf_model.load_state_dict(torch.load("./model_weights/init/humor/humorHCFNEWTransformer.pt"))
 
 
-        if args.dataset=="humor_+":
+        elif args.dataset=="humour_+":
             visual_model = Transformer(VISUAL_DIM, num_layers=7, nhead=3, dim_feedforward= 128)
             visual_model.load_state_dict(torch.load("./model_weights/init/humor/humorVisualTransformer.pt"))
             acoustic_model = Transformer(ACOUSTIC_DIM, num_layers=8, nhead=3, dim_feedforward = 256)
