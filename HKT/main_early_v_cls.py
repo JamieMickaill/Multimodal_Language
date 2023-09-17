@@ -48,7 +48,7 @@ parser.add_argument(
     "--model", type=str, choices=["HKT","language_only", "acoustic_only", "visual_only","hcf_only"], default="HKT",
 )
 
-parser.add_argument("--dataset", type=str, choices=["humor", "sarcasm"], default="sarcasm")
+parser.add_argument("--dataset", type=str, choices=["humor", "humour_+","humour_new", "sarcasm"], default="sarcasm")
 parser.add_argument("--batch_size", type=int, default=16)
 parser.add_argument("--max_seq_length", type=int, default=85)
 parser.add_argument("--n_layers", type=int, default=1)
@@ -290,6 +290,10 @@ def get_appropriate_dataset(data, tokenizer, parition):
 def set_up_data_loader():
     if args.dataset=="humor":
         data_file = "ur_funny.pkl"
+    elif args.dataset=="humour_+":
+        data_file = "ur_funny_extra_hcf.pkl"
+    elif args.dataset=="humour_new":
+        data_file = "ur_funny_new_hcf.pkl"
     elif args.dataset=="sarcasm":
         data_file = "mustard.pkl"
         
@@ -652,7 +656,9 @@ def prep_for_training(num_training_steps):
         #already has rich contextual representation. So in the beginning the gradient flows ignores other encoders which are trained from low level features. 
         # We found that if we intitalize the weights of the acoustic, visual and hcf encoders of HKT model from the best unimodal models that we already ran for ablation study then
         #the model converege faster. Other wise it takes very long time to converge. 
-        if args.dataset=="humor":
+
+        #unimodal models not used for early fusion
+        if args.dataset=="humor" or args.dataset=="humor_+" or args.dataset=="humor_new":
             visual_model = Transformer(VISUAL_DIM, num_layers=7, nhead=3, dim_feedforward= 128)
             visual_model.load_state_dict(torch.load("./model_weights/init/humor/humorVisualTransformer.pt"), strict=False)
             acoustic_model = Transformer(ACOUSTIC_DIM, num_layers=8, nhead=3, dim_feedforward = 256)
