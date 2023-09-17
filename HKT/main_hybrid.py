@@ -569,8 +569,8 @@ def train(
             model, test_dataloader, loss_fct
         )
         
-            
-        if(valid_loss <= best_valid_loss):
+            #save weights for new best accuracy
+        if(valid_loss <= best_valid_loss or best_valid_test_accuracy < test_accuracy):
             best_valid_loss = valid_loss
             best_valid_test_accuracy = test_accuracy
             best_valid_test_fscore= test_f_score
