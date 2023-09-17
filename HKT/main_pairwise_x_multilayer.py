@@ -191,7 +191,7 @@ def convert_humor_to_features(examples, tokenizer, punchline_only=False):
             )
         
         
-        hcf_zero = np.zeros((1,4))
+        hcf_zero = np.zeros((1,HCF_DIM_ALL))
         if len(tokens_a) == 0:
             hcf = np.concatenate((hcf_zero, hcf_zero, hcf_b, hcf_zero))
         else:
