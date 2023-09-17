@@ -228,6 +228,9 @@ def convert_humor_to_features(examples, tokenizer, punchline_only=False):
         )
         
         hcf = np.concatenate((hcf, hcf_padding))
+
+        hcf = np.take(hcf, hcf_features_list, axis=1)
+
         
         padding = [0] * (args.max_seq_length - len(input_ids))
 
