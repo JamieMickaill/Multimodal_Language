@@ -261,7 +261,7 @@ def convert_humor_to_features(examples, tokenizer, punchline_only=False):
                 acoustic=acoustic,
                 hcf=hcf,
                 label_id=label_id,
-                data_id=hid
+                data_id=int(hid)
             )
         )
             

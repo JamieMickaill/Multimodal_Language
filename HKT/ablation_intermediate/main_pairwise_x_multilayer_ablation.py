@@ -264,7 +264,7 @@ def convert_humor_to_features(examples, tokenizer, punchline_only=False):
                 acoustic=acoustic,
                 hcf=hcf,
                 label_id=label_id,
-                data_id=hid
+                data_id=int(hid)
             )
         )
             
@@ -525,7 +525,7 @@ def test_epoch(model, test_data_loader, loss_fct):
                 all_labels = np.append(
                     all_labels, label_ids.detach().cpu().numpy(), axis=0
                 )
-                all_ids = np.append(all_ids,data_ids, axis=0)
+                all_ids = np.append(all_ids,data_ids.detach().cpu().numpy(), axis=0)
                 
                 
                 
