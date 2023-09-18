@@ -521,7 +521,7 @@ def test_epoch(model, test_data_loader, loss_fct):
                 all_labels = np.append(
                     all_labels, label_ids.detach().cpu().numpy(), axis=0
                 )
-                all_ids = np.append(all_ids,data_ids, axis=0)                
+                all_ids = np.append(all_ids,data_ids.detach().cpu().numpy(), axis=0)                
                 
                 
         eval_loss = eval_loss / nb_eval_steps
