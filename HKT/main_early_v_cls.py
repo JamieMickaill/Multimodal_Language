@@ -661,14 +661,31 @@ def prep_for_training(num_training_steps):
         #the model converege faster. Other wise it takes very long time to converge. 
 
         #unimodal models not used for early fusion
-        if args.dataset=="humor" or args.dataset=="humour_+" or args.dataset=="humour_new":
+        if args.dataset=="humor":
             visual_model = Transformer(VISUAL_DIM, num_layers=7, nhead=3, dim_feedforward= 128)
-            visual_model.load_state_dict(torch.load("./model_weights/init/humor/humorVisualTransformer.pt"), strict=False)
+            visual_model.load_state_dict(torch.load("./model_weights/init/humor/humorVisualTransformer.pt"))
             acoustic_model = Transformer(ACOUSTIC_DIM, num_layers=8, nhead=3, dim_feedforward = 256)
-            acoustic_model.load_state_dict(torch.load("./model_weights/init/humor/humorAcousticTransformer.pt"), strict=False)
+            acoustic_model.load_state_dict(torch.load("./model_weights/init/humor/humorAcousticTransformer.pt"))
             hcf_model = Transformer(HCF_DIM, num_layers=3, nhead=2, dim_feedforward = 128)
-            hcf_model.load_state_dict(torch.load("./model_weights/init/humor/humorHCFTransformer.pt"), strict=False)
-            
+            hcf_model.load_state_dict(torch.load("./model_weights/init/humor/humorHCFTransformer.pt"))
+
+        elif args.dataset=="humour_new":
+            visual_model = Transformer(VISUAL_DIM, num_layers=7, nhead=3, dim_feedforward= 128)
+            visual_model.load_state_dict(torch.load("./model_weights/init/humor/humorVisualTransformer.pt"))
+            acoustic_model = Transformer(ACOUSTIC_DIM, num_layers=8, nhead=3, dim_feedforward = 256)
+            acoustic_model.load_state_dict(torch.load("./model_weights/init/humor/humorAcousticTransformer.pt"))
+            hcf_model = Transformer(HCF_DIM, num_layers=7, nhead=1, dim_feedforward = 128)
+            hcf_model.load_state_dict(torch.load("./model_weights/init/humor/humorHCFNEWTransformer.pt"))
+
+
+        elif args.dataset=="humour_+":
+            visual_model = Transformer(VISUAL_DIM, num_layers=7, nhead=3, dim_feedforward= 128)
+            visual_model.load_state_dict(torch.load("./model_weights/init/humor/humorVisualTransformer.pt"))
+            acoustic_model = Transformer(ACOUSTIC_DIM, num_layers=8, nhead=3, dim_feedforward = 256)
+            acoustic_model.load_state_dict(torch.load("./model_weights/init/humor/humorAcousticTransformer.pt"))
+            hcf_model = Transformer(HCF_DIM, num_layers=7, nhead=4, dim_feedforward = 128)
+            hcf_model.load_state_dict(torch.load("./model_weights/init/humor/humorHCFPLUSTransformer.pt"))
+                  
         elif args.dataset=="sarcasm":
             visual_model = Transformer(VISUAL_DIM, num_layers=8, nhead=4, dim_feedforward=1024)
             visual_model.load_state_dict(torch.load("./model_weights/init/sarcasm/sarcasmVisualTransformer.pt"), strict=False)

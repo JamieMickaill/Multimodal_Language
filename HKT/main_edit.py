@@ -169,6 +169,10 @@ def convert_humor_to_features(examples, tokenizer, punchline_only=False):
         visual_b = np.array(visual_b)
         acoustic_b = np.array(acoustic_b)
         hcf_b = np.array(hcf_b)
+
+
+
+
         
         tokens = ["[CLS]"] + tokens_a + ["[SEP]"] + tokens_b + ["[SEP]"]
 
@@ -191,6 +195,25 @@ def convert_humor_to_features(examples, tokenizer, punchline_only=False):
             )
         
         
+        #pad arrays for proper hcf dim
+        current_shape_a = hcf_a.shape
+        current_shape_b = hcf_b.shape
+        padding_needed = HCF_DIM_ALL - (current_shape_a[1])
+
+        # Calculate the padding
+        pad_array_shape_a = (current_shape_a[0], padding_needed)
+        pad_array_shape_b = (current_shape_b[0], padding_needed)
+
+        # Create the padding array filled with zeros
+        pad_array_a = np.zeros(pad_array_shape_a)
+        pad_array_b = np.zeros(pad_array_shape_b)
+
+
+        # Horizontally stack the original array and the padding array
+        hcf_a = np.hstack((hcf_a, pad_array_a))
+        hcf_b = np.hstack((hcf_b, pad_array_b))
+
+
         hcf_zero = np.zeros((1,HCF_DIM_ALL))
         if len(tokens_a) == 0:
             hcf = np.concatenate((hcf_zero, hcf_zero, hcf_b, hcf_zero))
