@@ -198,7 +198,7 @@ def convert_humor_to_features(examples, tokenizer, punchline_only=False):
         #pad arrays for proper hcf dim
         current_shape_a = hcf_a.shape
         current_shape_b = hcf_b.shape
-        padding_needed = HCF_DIM_ALL - (current_shape_a[1])
+        padding_needed = HCF_DIM_ALL - (current_shape_b[1])
 
         # Calculate the padding
         pad_array_shape_a = (current_shape_a[0], padding_needed)
@@ -210,7 +210,6 @@ def convert_humor_to_features(examples, tokenizer, punchline_only=False):
 
 
         # Horizontally stack the original array and the padding array
-        hcf_a = np.hstack((hcf_a, pad_array_a))
         hcf_b = np.hstack((hcf_b, pad_array_b))
 
 
@@ -218,6 +217,8 @@ def convert_humor_to_features(examples, tokenizer, punchline_only=False):
         if len(tokens_a) == 0:
             hcf = np.concatenate((hcf_zero, hcf_zero, hcf_b, hcf_zero))
         else:
+            hcf_a = np.hstack((hcf_a, pad_array_a))
+
             hcf = np.concatenate(
                 (hcf_zero, hcf_a, hcf_zero, hcf_b, hcf_zero)
                 

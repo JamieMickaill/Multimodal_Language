@@ -551,9 +551,15 @@ def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False):
     data = zip(data_ids,predictions,y_test)
     performanceDict = dict([(str(x), (int(y), int(z))) for x, y, z in data])
 
+    # Classification Report
+    cr = classification_report(y_test, predictions, target_names=['class_0', 'class_1'])
+    
+    # Confusion Matrix
+    conf_matrix = confusion_matrix(y_test, predictions)
+
 
     print("Accuracy:", accuracy,"F score:", f_score)
-    return accuracy, f_score, test_loss, performanceDict
+    return accuracy, f_score, test_loss, performanceDict, cr, conf_matrix
 
 
 
@@ -592,7 +598,7 @@ def train(
             )
         )
 
-        test_accuracy, test_f_score, test_loss, predDict = test_score_model(
+        test_accuracy, test_f_score, test_loss, predDict, classification_report, confusion_matrix = test_score_model(
             model, test_dataloader, loss_fct
         )
         
@@ -610,6 +616,9 @@ def train(
                 with open('performanceDictX.json', 'w') as fp:
                     import json
                     json.dump(predDict, fp)
+            
+            print(classification_report)
+            print(confusion_matrix)
         # else:
             # epochs_without_improvement +=1
             

@@ -62,6 +62,7 @@ parser.add_argument("--include_v", type=str, choices=["y","n"], default = "y")
 parser.add_argument("--include_t", type=str, choices=["y","n"], default = "y")
 parser.add_argument("--include_a", type=str, choices=["y","n"], default = "y")
 parser.add_argument("--include_h", type=str, choices=["y","n"], default = "y")
+parser.add_argument("--save_preds", type=str, choices=["True","False"], default="False")
 
 parser.add_argument("--seed", type=int, default=100)
 
@@ -81,7 +82,7 @@ args = parser.parse_args()
 class InputFeatures(object):
     """A single set of features of data."""
 
-    def __init__(self, input_ids, input_mask, segment_ids, visual, acoustic,hcf,label_id):
+    def __init__(self, input_ids, input_mask, segment_ids, visual, acoustic,hcf,label_id,data_id):
         self.input_ids = input_ids
         self.input_mask = input_mask
         self.segment_ids = segment_ids
@@ -89,6 +90,7 @@ class InputFeatures(object):
         self.acoustic = acoustic
         self.hcf = hcf
         self.label_id = label_id
+        self.data_id = data_id
 
 def _truncate_seq_pair(tokens_a, tokens_b, max_length):
     """Truncates a sequence pair in place to the maximum length."""
@@ -258,6 +260,7 @@ def convert_humor_to_features(examples, tokenizer, punchline_only=False):
                 acoustic=acoustic,
                 hcf=hcf,
                 label_id=label_id,
+                data_id=hid
             )
         )
             
@@ -276,6 +279,7 @@ def get_appropriate_dataset(data, tokenizer, parition):
     all_acoustic = torch.tensor([f.acoustic for f in features], dtype=torch.float)
     hcf = torch.tensor([f.hcf for f in features], dtype=torch.float)
     all_label_ids = torch.tensor([f.label_id for f in features], dtype=torch.float)
+    all_data_ids = torch.tensor([f.data_id for f in features], dtype=torch.float)
     
 
     dataset = TensorDataset(
@@ -286,7 +290,7 @@ def get_appropriate_dataset(data, tokenizer, parition):
         all_segment_ids,
         hcf,
         all_label_ids,
-    )
+        all_data_ids    )
     
     return dataset
 
@@ -408,7 +412,9 @@ def eval_epoch(model, dev_dataloader, loss_fct):
                 input_mask,
                 segment_ids,
                 hcf,
-                label_ids
+                label_ids,
+                data_ids
+
             ) = batch
                     
             visual = torch.squeeze(visual, 1)
@@ -453,6 +459,7 @@ def test_epoch(model, test_data_loader, loss_fct):
     nb_eval_steps = 0
     preds = []
     all_labels = []
+    all_ids = []
 
     with torch.no_grad():
         for step, batch in enumerate(tqdm(test_data_loader, desc="Iteration")):
@@ -466,7 +473,8 @@ def test_epoch(model, test_data_loader, loss_fct):
                 input_mask,
                 segment_ids,
                 hcf,
-                label_ids
+                label_ids,
+                data_ids
             ) = batch
                     
             visual = torch.squeeze(visual, 1)
@@ -512,28 +520,41 @@ def test_epoch(model, test_data_loader, loss_fct):
                 all_labels = np.append(
                     all_labels, label_ids.detach().cpu().numpy(), axis=0
                 )
+                all_ids = np.append(all_ids,data_ids, axis=0)
                 
                 
                 
         eval_loss = eval_loss / nb_eval_steps
         preds = np.squeeze(preds)
         all_labels = np.squeeze(all_labels)
+        all_ids = np.squeeze(all_ids)
 
-    return preds, all_labels, eval_loss
+    return preds, all_labels, eval_loss, all_ids
 
 
 
 def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False):
 
-    predictions, y_test, test_loss = test_epoch(model, test_data_loader, loss_fct)
+    predictions, y_test, test_loss,data_ids = test_epoch(model, test_data_loader, loss_fct)
     
     predictions = predictions.round()
 
     f_score = f1_score(y_test, predictions, average="weighted")
     accuracy = accuracy_score(y_test, predictions)
 
+		
+    # Confusion Matrix
+    data = zip(data_ids,predictions,y_test)
+    performanceDict = dict([(str(x), (int(y), int(z))) for x, y, z in data])
+
+    # Classification Report
+    cr = classification_report(y_test, predictions, target_names=['class_0', 'class_1'])
+    
+    # Confusion Matrix
+    conf_matrix = confusion_matrix(y_test, predictions)
+
     print("Accuracy:", accuracy,"F score:", f_score)
-    return accuracy, f_score, test_loss
+    return accuracy, f_score, test_loss,performanceDict,cr,confusion_matrix
 
 
 
@@ -571,12 +592,14 @@ def train(
             )
         )
 
-        test_accuracy, test_f_score, test_loss = test_score_model(
+
+        test_accuracy, test_f_score, test_loss, predDict,classification_report,confusion_matrix = test_score_model(
             model, test_dataloader, loss_fct
         )
         
             
-        if(valid_loss <= best_valid_loss):
+            
+        if(valid_loss <= best_valid_loss) or (test_accuracy > best_valid_test_accuracy):
             best_valid_loss = valid_loss
             best_valid_test_accuracy = test_accuracy
             best_valid_test_fscore= test_f_score
@@ -584,9 +607,14 @@ def train(
             
             if(args.save_weight == "True"):
                 torch.save(model.state_dict(),'./best_weights/'+run_name+'.pt')
-        # else:
-            # epochs_without_improvement +=1
             
+            if(args.save_preds == "True"):
+                with open('performanceDictX.json', 'w') as fp:
+                    import json
+                    json.dump(predDict, fp)
+            
+            print(classification_report)
+            print(confusion_matrix)
         # If epochs without improvement exceeds patience, stop training
         if epochs_without_improvement >= patience:
             print("Early stopping triggered")
