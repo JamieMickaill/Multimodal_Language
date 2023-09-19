@@ -577,6 +577,7 @@ def train(
 ):
        
     best_valid_loss = 9e+9
+    best_valid_test_accuracy = 0
     run_name = str(wandb.run.id)
     valid_losses = []
     
@@ -604,7 +605,7 @@ def train(
         )
         
             
-        if(valid_loss <= best_valid_loss) or (test_accuracy > best_valid_test_accuracy):
+        if(test_accuracy > best_valid_test_accuracy):
             best_valid_loss = valid_loss
             best_valid_test_accuracy = test_accuracy
             best_valid_test_fscore= test_f_score
@@ -676,14 +677,29 @@ def prep_for_training(num_training_steps):
             "albert-base-v2", num_labels=1
         )
     elif args.model == "acoustic_only":
-        model = Transformer(ACOUSTIC_DIM, num_layers=args.n_layers, nhead=args.n_heads, dim_feedforward=args.fc_dim)
-        
+        if args.dataset=="humor":
+            model = Transformer(ACOUSTIC_DIM, num_layers=1, nhead=3, dim_feedforward=512)
+            model.load_state_dict(torch.load("./model_weights/init/humor/humorAcousticTransformer.pt"))
+        else:
+            model = Transformer(ACOUSTIC_DIM, num_layers=8, nhead=3, dim_feedforward = 256)
+            model.load_state_dict(torch.load("./model_weights/init/humor/humorAcousticTransformer.pt"))
+            
     elif args.model == "visual_only":
-        model = Transformer(VISUAL_DIM, num_layers=args.n_layers, nhead=args.n_heads, dim_feedforward=args.fc_dim)
-        
+        if args.dataset=="humor":
+            model = Transformer(VISUAL_DIM, num_layers=7, nhead=3, dim_feedforward= 128)
+            model.load_state_dict(torch.load("./model_weights/init/humor/humorVisualTransformer.pt"))
+        else:
+            model = Transformer(VISUAL_DIM, num_layers=8, nhead=4, dim_feedforward=1024)
+            model.load_state_dict(torch.load("./model_weights/init/sarcasm/sarcasmVisualTransformer.pt"))
+            
     elif args.model=="hcf_only":
-        model=Transformer(HCF_DIM, num_layers=args.n_layers, nhead=args.n_heads, dim_feedforward=args.fc_dim)
-        
+        if args.dataset=="humor":
+            model=Transformer(HCF_DIM, num_layers=3, nhead=2, dim_feedforward = 128)
+            model.load_state_dict(torch.load("./model_weights/init/humor/humorHCFTransformer.pt"))
+        else:
+            model = Transformer(HCF_DIM, num_layers=8, nhead=4, dim_feedforward=128)
+            model.load_state_dict(torch.load("./model_weights/init/sarcasm/sarcasmHCFTransformer.pt"))
+
     elif args.model == "HKT" :
         #HKT model has 4 unimodal encoders. But the language one is ALBERT pretrained model. But other enocders are
         #trained from scratch with low level features. We have found that many times most of the the gardients flows to albert encoders only as it
