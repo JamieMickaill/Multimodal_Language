@@ -347,7 +347,8 @@ def train_epoch(model, train_dataloader, optimizer, scheduler, loss_fct):
             input_mask,
             segment_ids,
             hcf,
-            label_ids
+            label_ids,
+            data_ids
         ) = batch
         
         visual = torch.squeeze(visual, 1)

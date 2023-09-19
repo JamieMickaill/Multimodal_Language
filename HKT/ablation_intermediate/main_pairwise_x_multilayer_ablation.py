@@ -678,11 +678,11 @@ def prep_for_training(num_training_steps):
         )
     elif args.model == "acoustic_only":
         if args.dataset=="humor":
-            model = Transformer(ACOUSTIC_DIM, num_layers=1, nhead=3, dim_feedforward=512)
-            model.load_state_dict(torch.load("./model_weights/init/humor/humorAcousticTransformer.pt"))
-        else:
             model = Transformer(ACOUSTIC_DIM, num_layers=8, nhead=3, dim_feedforward = 256)
             model.load_state_dict(torch.load("./model_weights/init/humor/humorAcousticTransformer.pt"))
+        else:
+            model = Transformer(ACOUSTIC_DIM, num_layers=1, nhead=3, dim_feedforward=512)
+            model.load_state_dict(torch.load("./model_weights/init/sarcasm/sarcasmAcousticTransformer.pt"))
             
     elif args.model == "visual_only":
         if args.dataset=="humor":
