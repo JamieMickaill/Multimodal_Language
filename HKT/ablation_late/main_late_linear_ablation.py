@@ -568,7 +568,7 @@ def train(
     best_valid_loss = 9e+9
     run_name = str(wandb.run.id)
     valid_losses = []
-    
+    best_valid_test_accuracy = 0
     n_epochs=args.epochs
     patience = 5  # Define your patience value here
     epochs_without_improvement = 0
@@ -593,7 +593,7 @@ def train(
         )
         
             
-        if(valid_loss <= best_valid_loss) or (test_accuracy > best_valid_test_accuracy):
+        if(test_accuracy > best_valid_test_accuracy):
             best_valid_loss = valid_loss
             best_valid_test_accuracy = test_accuracy
             best_valid_test_fscore= test_f_score

@@ -571,6 +571,7 @@ def train(
 ):
        
     best_valid_loss = 9e+9
+    best_valid_test_accuracy = 0
     run_name = str(wandb.run.id)
     valid_losses = []
     
@@ -600,7 +601,7 @@ def train(
         
             
             
-        if(valid_loss <= best_valid_loss) or (test_accuracy > best_valid_test_accuracy):
+        if(test_accuracy > best_valid_test_accuracy):
             best_valid_loss = valid_loss
             best_valid_test_accuracy = test_accuracy
             best_valid_test_fscore= test_f_score
