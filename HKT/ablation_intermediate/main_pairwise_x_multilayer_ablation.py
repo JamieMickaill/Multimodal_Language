@@ -56,6 +56,7 @@ parser.add_argument("--n_heads", type=int, default=1)
 parser.add_argument("--cross_n_layers", type=int, default=1)
 parser.add_argument("--cross_n_heads", type=int, default=4)
 parser.add_argument("--fusion_dim", type=int, default=172)
+parser.add_argument("--fc_dim", type=int, default=128)
 parser.add_argument("--dropout", type=float, default=0.2366)
 parser.add_argument("--epochs", type=int, default=20)
 
