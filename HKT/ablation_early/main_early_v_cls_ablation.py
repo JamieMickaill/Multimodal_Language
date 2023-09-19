@@ -554,7 +554,7 @@ def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False):
     conf_matrix = confusion_matrix(y_test, predictions)
 
     print("Accuracy:", accuracy,"F score:", f_score)
-    return accuracy, f_score, test_loss,performanceDict,cr,confusion_matrix
+    return accuracy, f_score, test_loss,performanceDict,cr,conf_matrix
 
 
 
