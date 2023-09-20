@@ -521,6 +521,7 @@ def test_epoch(model, test_data_loader, loss_fct):
             if len(preds) == 0:
                 preds=logits.detach().cpu().numpy()
                 all_labels=label_ids.detach().cpu().numpy()
+                all_ids = data_ids.detach().cpu().numpy()
             else:
                 preds= np.append(preds, logits.detach().cpu().numpy(), axis=0)
                 all_labels = np.append(
