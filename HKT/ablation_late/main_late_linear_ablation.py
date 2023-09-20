@@ -91,7 +91,7 @@ class InputFeatures(object):
         self.acoustic = acoustic
         self.hcf = hcf
         self.label_id = label_id
-        self.data_id = data_ids
+        self.data_id = data_id
 
 def _truncate_seq_pair(tokens_a, tokens_b, max_length):
     """Truncates a sequence pair in place to the maximum length."""
