@@ -472,7 +472,7 @@ def eval_epoch(model, dev_dataloader, loss_fct):
 
     return dev_loss/nb_dev_steps
 
-def test_epoch(model, test_data_loader, loss_fct):
+def test_epoch(model, test_data_loader, loss_fct, save_features=True):
     """ Epoch operation in evaluation phase """
     model.eval()
 
@@ -480,6 +480,7 @@ def test_epoch(model, test_data_loader, loss_fct):
     nb_eval_steps = 0
     preds = []
     all_labels = []
+    all_features  = []
 
     with torch.no_grad():
         for step, batch in enumerate(tqdm(test_data_loader, desc="Iteration")):
@@ -522,7 +523,9 @@ def test_epoch(model, test_data_loader, loss_fct):
             
             
             logits = outputs[0]
-            
+
+            if save_features:
+                np.append(all_features,outputs[1].detach().cpu().numpy())
             
             tmp_eval_loss = loss_fct(logits.view(-1), label_ids.view(-1))
 
@@ -545,19 +548,31 @@ def test_epoch(model, test_data_loader, loss_fct):
         eval_loss = eval_loss / nb_eval_steps
         preds = np.squeeze(preds)
         all_labels = np.squeeze(all_labels)
+    if save_features:
+        return preds, all_labels, eval_loss, all_features
+    else:
+        return preds, all_labels, eval_loss
 
-    return preds, all_labels, eval_loss
 
 
 
-def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False):
+def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False, save_features = True):
 
-    predictions, y_test, test_loss = test_epoch(model, test_data_loader, loss_fct)
+    if save_features:
+        predictions, y_test, test_loss, features = test_epoch(model, test_data_loader, loss_fct, save_features=True)
+        # Save features to disk or do further processing
+        np.save(f"test_features_{str(wandb.run.id)}.npy", features)
+    else:
+        predictions, y_test, test_loss = test_epoch(model, test_data_loader, loss_fct)
     
+
     predictions = predictions.round()
 
     f_score = f1_score(y_test, predictions, average="weighted")
     accuracy = accuracy_score(y_test, predictions)
+
+
+            
 
     print("Accuracy:", accuracy,"F score:", f_score)
     return accuracy, f_score, test_loss
@@ -573,6 +588,7 @@ def train(
     optimizer,
     scheduler,
     loss_fct,
+    save_features = True,
 ):
        
     best_valid_loss = 9e+9
@@ -600,7 +616,7 @@ def train(
             model, test_dataloader, loss_fct
         )
         
-            
+
         if(valid_loss <= best_valid_loss):
             best_valid_loss = valid_loss
             best_valid_test_accuracy = test_accuracy

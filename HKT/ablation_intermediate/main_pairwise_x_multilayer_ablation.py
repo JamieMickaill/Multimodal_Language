@@ -457,7 +457,7 @@ def eval_epoch(model, dev_dataloader, loss_fct):
 
     return dev_loss/nb_dev_steps
 
-def test_epoch(model, test_data_loader, loss_fct):
+def test_epoch(model, test_data_loader, loss_fct,save_features=True):
     """ Epoch operation in evaluation phase """
     model.eval()
 
@@ -466,6 +466,7 @@ def test_epoch(model, test_data_loader, loss_fct):
     preds = []
     all_labels = []
     all_ids = []
+    all_features = []
 
     with torch.no_grad():
         for step, batch in enumerate(tqdm(test_data_loader, desc="Iteration")):
@@ -509,6 +510,11 @@ def test_epoch(model, test_data_loader, loss_fct):
             
             
             logits = outputs[0]
+
+            if save_features:
+                np.append(all_features,outputs[1].detach().cpu().numpy())
+            
+            
             
             
             tmp_eval_loss = loss_fct(logits.view(-1), label_ids.view(-1))
@@ -536,15 +542,22 @@ def test_epoch(model, test_data_loader, loss_fct):
         all_labels = np.squeeze(all_labels)
         all_ids = np.squeeze(all_ids)
 
+    if save_features:
+        return preds, all_labels, eval_loss, all_ids, all_features
+    else:
+        return preds, all_labels, eval_loss, all_ids
 
-    return preds, all_labels, eval_loss, all_ids
 
 
 
-def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False):
+def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False, save_features=True):
 
-    predictions, y_test, test_loss, data_ids = test_epoch(model, test_data_loader, loss_fct)
-    
+    if save_features:
+        predictions, y_test, test_loss, data_ids, all_features = test_epoch(model, test_data_loader, loss_fct)
+        np.save(f"test_features_intermediate.npy", all_features)
+    else:
+        predictions, y_test, test_loss, data_ids = test_epoch(model, test_data_loader, loss_fct)
+        
     predictions = predictions.round()
 
     f_score = f1_score(y_test, predictions, average="weighted")
