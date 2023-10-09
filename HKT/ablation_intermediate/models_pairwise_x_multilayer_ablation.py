@@ -57,7 +57,7 @@ class Transformer(nn.Module):
 
 class Transformer1(nn.Module):
     def __init__(self, d_model, num_layers=1, nhead=1, dropout=0.1, dim_feedforward=128, max_seq_length=5000):
-        super(Transformer, self).__init__()
+        super(Transformer1, self).__init__()
         self.d_model = d_model
         self.pos_encoder = nn.Embedding(max_seq_length, d_model)
         self.encoder = TransformerEncoder(TransformerLayer(d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=dropout), num_layers=num_layers)
