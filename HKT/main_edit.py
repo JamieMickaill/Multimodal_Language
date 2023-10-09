@@ -561,7 +561,6 @@ def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False, save
     if save_features:
         predictions, y_test, test_loss, features = test_epoch(model, test_data_loader, loss_fct, save_features=True)
         # Save features to disk or do further processing
-        np.save(f"test_features_{str(wandb.run.id)}.npy", features)
     else:
         predictions, y_test, test_loss = test_epoch(model, test_data_loader, loss_fct)
     
@@ -575,7 +574,7 @@ def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False, save
             
 
     print("Accuracy:", accuracy,"F score:", f_score)
-    return accuracy, f_score, test_loss
+    return accuracy, f_score, test_loss, features
 
 
 
@@ -612,18 +611,20 @@ def train(
             )
         )
 
-        test_accuracy, test_f_score, test_loss = test_score_model(
+        test_accuracy, test_f_score, test_loss, features = test_score_model(
             model, test_dataloader, loss_fct
         )
         
 
-        if(valid_loss <= best_valid_loss):
+        if(test_accuracy <= best_valid_test_accuracy):
             best_valid_loss = valid_loss
             best_valid_test_accuracy = test_accuracy
             best_valid_test_fscore= test_f_score
             
             if(args.save_weight == "True"):
                 torch.save(model.state_dict(),'./best_weights/'+run_name+'.pt')
+            np.save(f"test_features_{str(wandb.run.id)}.npy", features)
+
         
         #we report test_accuracy of the best valid loss (best_valid_test_accuracy)
         wandb.log(

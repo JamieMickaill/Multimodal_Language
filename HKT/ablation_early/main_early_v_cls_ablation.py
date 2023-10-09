@@ -452,7 +452,7 @@ def eval_epoch(model, dev_dataloader, loss_fct):
 
     return dev_loss/nb_dev_steps
 
-def test_epoch(model, test_data_loader, loss_fct):
+def test_epoch(model, test_data_loader, loss_fct, save_features = True):
     """ Epoch operation in evaluation phase """
     model.eval()
 
@@ -460,6 +460,7 @@ def test_epoch(model, test_data_loader, loss_fct):
     nb_eval_steps = 0
     preds = []
     all_labels = []
+    all_features = []
     all_ids = []
 
     with torch.no_grad():
@@ -504,6 +505,11 @@ def test_epoch(model, test_data_loader, loss_fct):
             
             
             logits = outputs[0]
+
+
+            if save_features:
+                np.append(all_features,outputs[1].detach().cpu().numpy())
+            
             
             
             tmp_eval_loss = loss_fct(logits.view(-1), label_ids.view(-1))
@@ -531,13 +537,21 @@ def test_epoch(model, test_data_loader, loss_fct):
         all_labels = np.squeeze(all_labels)
         all_ids = np.squeeze(all_ids)
 
-    return preds, all_labels, eval_loss, all_ids
+    if save_features:
+        return preds, all_labels, eval_loss,all_ids, all_features
+    else:
+        return preds, all_labels, eval_loss,all_ids
 
 
 
-def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False):
+def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False,save_features=True):
 
-    predictions, y_test, test_loss,data_ids = test_epoch(model, test_data_loader, loss_fct)
+    if save_features:
+        predictions, y_test, test_loss,data_ids, features = test_epoch(model, test_data_loader, loss_fct, save_features=True)
+        # Save features to disk or do further processing
+
+    else:
+        predictions, y_test, test_loss,data_ids = test_epoch(model, test_data_loader, loss_fct)
     
     predictions = predictions.round()
 
@@ -556,7 +570,7 @@ def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False):
     conf_matrix = confusion_matrix(y_test, predictions)
 
     print("Accuracy:", accuracy,"F score:", f_score)
-    return accuracy, f_score, test_loss,performanceDict,cr,conf_matrix
+    return accuracy, f_score, test_loss,performanceDict,cr,conf_matrix, features
 
 
 
@@ -596,7 +610,7 @@ def train(
         )
 
 
-        test_accuracy, test_f_score, test_loss, predDict,classification_report,confusion_matrix = test_score_model(
+        test_accuracy, test_f_score, test_loss, predDict,classification_report,confusion_matrix,features = test_score_model(
             model, test_dataloader, loss_fct
         )
         
@@ -615,6 +629,7 @@ def train(
                 with open('performanceDictX.json', 'w') as fp:
                     import json
                     json.dump(predDict, fp)
+            np.save("test_features_early.npy", features)
             
             print(classification_report)
             print(confusion_matrix)

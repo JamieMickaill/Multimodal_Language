@@ -545,7 +545,6 @@ def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False, save
 
     if save_features:
         predictions, y_test, test_loss, data_ids, all_features = test_epoch(model, test_data_loader, loss_fct)
-        np.save(f"test_features_late.npy", all_features)
     else:
         predictions, y_test, test_loss, data_ids = test_epoch(model, test_data_loader, loss_fct)
         
@@ -564,7 +563,7 @@ def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False, save
     conf_matrix = confusion_matrix(y_test, predictions)
 
     print("Accuracy:", accuracy,"F score:", f_score)
-    return accuracy, f_score, test_loss,performanceDict,cr,conf_matrix
+    return accuracy, f_score, test_loss,performanceDict,cr,conf_matrix,all_features
 
 
 
@@ -622,6 +621,8 @@ def train(
             
             print(classification_report)
             print(confusion_matrix)
+            np.save(f"test_features_late.npy", all_features)
+
         # else:
             # epochs_without_improvement +=1
             

@@ -554,7 +554,6 @@ def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False, save
 
     if save_features:
         predictions, y_test, test_loss, data_ids, all_features = test_epoch(model, test_data_loader, loss_fct)
-        np.save(f"test_features_intermediate.npy", all_features)
     else:
         predictions, y_test, test_loss, data_ids = test_epoch(model, test_data_loader, loss_fct)
         
@@ -574,7 +573,7 @@ def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False, save
 
 
     print("Accuracy:", accuracy,"F score:", f_score)
-    return accuracy, f_score, test_loss, performanceDict, cr, conf_matrix
+    return accuracy, f_score, test_loss, performanceDict, cr, conf_matrix,all_features
 
 
 
@@ -614,7 +613,7 @@ def train(
             )
         )
 
-        test_accuracy, test_f_score, test_loss, predDict, classification_report, confusion_matrix = test_score_model(
+        test_accuracy, test_f_score, test_loss, predDict, classification_report, confusion_matrix,all_features = test_score_model(
             model, test_dataloader, loss_fct
         )
         
@@ -632,6 +631,8 @@ def train(
                 with open('performanceDictX.json', 'w') as fp:
                     import json
                     json.dump(predDict, fp)
+            np.save(f"test_features_intermediate.npy", all_features)
+
             
             print(classification_report)
             print(confusion_matrix)
