@@ -512,7 +512,7 @@ def test_epoch(model, test_data_loader, loss_fct,save_features=True):
             logits = outputs[0]
 
             if save_features:
-                np.append(all_features,outputs[1].detach().cpu().numpy())
+                np.append(all_features,all_features,outputs[1].detach().cpu().numpy())
             
             
             
