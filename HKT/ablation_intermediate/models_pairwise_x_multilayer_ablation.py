@@ -55,6 +55,25 @@ class Transformer(nn.Module):
         out = (out[:,0,:], out, hidden) # ([CLS] token embedding, full output, last hidden layer)
         return out
 
+class Transformer1(nn.Module):
+    def __init__(self, d_model, num_layers=1, nhead=1, dropout=0.1, dim_feedforward=128, max_seq_length=5000):
+        super(Transformer, self).__init__()
+        self.d_model = d_model
+        self.pos_encoder = nn.Embedding(max_seq_length, d_model)
+        self.encoder = TransformerEncoder(TransformerLayer(d_model, nhead=nhead, dim_feedforward=dim_feedforward, dropout=dropout), num_layers=num_layers)
+        self.decoder = nn.Linear(d_model, 1)
+        self.norm = nn.LayerNorm(d_model)
+
+    def forward(self, input, attention_mask=None):
+        seq_length = input.size()[1]
+        position_ids = torch.arange(seq_length, dtype=torch.long, device=input.device)
+        positions_embedding = self.pos_encoder(position_ids).unsqueeze(0).expand(input.size()) # (seq_length, d_model) => (batch_size, seq_length, d_model)
+        input = input + positions_embedding
+        input = self.norm(input)
+        hidden = self.encoder(input, attention_mask=attention_mask)
+        out = self.decoder(hidden) # (batch_size, seq_len, hidden_dim)
+        out = (out[:,0,:], out, hidden) # ([CLS] token embedding, full output, last hidden layer)
+        return (out,hidden)
 
 
 class TransformerLayer(nn.Module):
