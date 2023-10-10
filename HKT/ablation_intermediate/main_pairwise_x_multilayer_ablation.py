@@ -638,7 +638,7 @@ def train(
                 with open('performanceDictX.json', 'w') as fp:
                     import json
                     json.dump(predDict, fp)
-            np.save(f"test_features_intermediate.npy", all_features)
+            np.save(f"test_features_intermediate_{str(wandb.run.id)}.npy", all_features)
 
             
             print(classification_report)
