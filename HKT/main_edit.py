@@ -525,10 +525,7 @@ def test_epoch(model, test_data_loader, loss_fct, save_features=True):
             logits = outputs[0]
 
             if save_features:
-                if len(preds) == 0:
-                    all_features = outputs[1].detach().cpu().numpy()
-                else:
-                    np.append(all_features,outputs[1].detach().cpu().numpy())
+                all_features.append(outputs[1].detach().cpu().numpy())
             
             
             tmp_eval_loss = loss_fct(logits.view(-1), label_ids.view(-1))
@@ -563,11 +560,12 @@ def test_epoch(model, test_data_loader, loss_fct, save_features=True):
 def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False, save_features = True):
 
     if save_features:
-        predictions, y_test, test_loss, features = test_epoch(model, test_data_loader, loss_fct, save_features=True)
+        predictions, y_test, test_loss, all_features = test_epoch(model, test_data_loader, loss_fct, save_features=True)
         # Save features to disk or do further processing
     else:
         predictions, y_test, test_loss = test_epoch(model, test_data_loader, loss_fct)
     
+    featureList = [x for x in zip(y_test,all_features)]
 
     predictions = predictions.round()
 
@@ -578,7 +576,7 @@ def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False, save
             
 
     print("Accuracy:", accuracy,"F score:", f_score)
-    return accuracy, f_score, test_loss, features
+    return accuracy, f_score, test_loss, featureList
 
 
 
@@ -615,7 +613,7 @@ def train(
             )
         )
 
-        test_accuracy, test_f_score, test_loss, features = test_score_model(
+        test_accuracy, test_f_score, test_loss, featureList = test_score_model(
             model, test_dataloader, loss_fct
         )
         
@@ -627,9 +625,10 @@ def train(
             
             if(args.save_weight == "True"):
                 torch.save(model.state_dict(),'./best_weights/'+run_name+'.pt')
-            np.save(f"test_features_{str(wandb.run.id)}.npy", features)
 
-        
+            with open(f"test_features_HKT.pkl", 'wb') as f:
+                pickle.dump(featureList, f)
+
         #we report test_accuracy of the best valid loss (best_valid_test_accuracy)
         wandb.log(
             {

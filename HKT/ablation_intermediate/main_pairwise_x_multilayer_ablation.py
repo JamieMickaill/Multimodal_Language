@@ -572,6 +572,7 @@ def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False, save
 
     data = zip(data_ids,predictions,y_test)
     performanceDict = dict([(str(x), (int(y), int(z))) for x, y, z in data])
+    featureDict = dict([(str(x),y) for x,y in zip(data_ids,all_features)])
 
     # Classification Report
     cr = classification_report(y_test, predictions, target_names=['class_0', 'class_1'])
@@ -581,7 +582,7 @@ def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False, save
 
 
     print("Accuracy:", accuracy,"F score:", f_score)
-    return accuracy, f_score, test_loss, performanceDict, cr, conf_matrix,all_features
+    return accuracy, f_score, test_loss, performanceDict, cr, conf_matrix,featureDict
 
 
 
@@ -621,7 +622,7 @@ def train(
             )
         )
 
-        test_accuracy, test_f_score, test_loss, predDict, classification_report, confusion_matrix,all_features = test_score_model(
+        test_accuracy, test_f_score, test_loss, predDict, classification_report, confusion_matrix,featureDict = test_score_model(
             model, test_dataloader, loss_fct
         )
         
@@ -639,8 +640,10 @@ def train(
                 with open('performanceDictX.json', 'w') as fp:
                     import json
                     json.dump(predDict, fp)
-            np.save(f"test_features_intermediate_{str(wandb.run.id)}.npy", all_features)
-            print(f"Size of features {all_features.shape}")
+            with open(f"test_features_intermediate_{str(wandb.run.id)}.pkl", 'wb') as f:
+                pickle.dump(featureDict, f)
+            # np.save(f"test_features_intermediate_{str(wandb.run.id)}.npy", all_features)
+            # print(f"Size of features {all_features.shape}")
 
             
             print(classification_report)

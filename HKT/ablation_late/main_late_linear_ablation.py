@@ -506,12 +506,10 @@ def test_epoch(model, test_data_loader, loss_fct,save_features = True):
             
             logits = outputs[0]
 
-            if save_features:
-                if len(preds) == 0:
-                    all_features = outputs[1].detach().cpu().numpy()
-                else:
-                    np.append(all_features,outputs[1].detach().cpu().numpy())
             
+
+            if save_features:
+                all_features.append(outputs[1].detach().cpu().numpy())            
             
             tmp_eval_loss = loss_fct(logits.view(-1), label_ids.view(-1))
 
@@ -531,6 +529,7 @@ def test_epoch(model, test_data_loader, loss_fct,save_features = True):
                 )
                 all_ids = np.append(all_ids,data_ids.detach().cpu().numpy(), axis=0)                
                 
+        all_features = np.concatenate(all_features, axis=0)
                 
         eval_loss = eval_loss / nb_eval_steps
         preds = np.squeeze(preds)
@@ -558,6 +557,7 @@ def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False, save
     accuracy = accuracy_score(y_test, predictions)
     data = zip(data_ids,predictions,y_test)
     performanceDict = dict([(str(x), (int(y), int(z))) for x, y, z in data])
+    featureDict = dict([(str(x),y) for x,y in zip(data_ids,all_features)])
 
     # Classification Report
     cr = classification_report(y_test, predictions, target_names=['class_0', 'class_1'])
@@ -566,7 +566,7 @@ def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False, save
     conf_matrix = confusion_matrix(y_test, predictions)
 
     print("Accuracy:", accuracy,"F score:", f_score)
-    return accuracy, f_score, test_loss,performanceDict,cr,conf_matrix,all_features
+    return accuracy, f_score, test_loss,performanceDict,cr,conf_matrix,featureDict
 
 
 
@@ -603,7 +603,7 @@ def train(
             )
         )
 
-        test_accuracy, test_f_score, test_loss, predDict,classification_report,confusion_matrix = test_score_model(
+        test_accuracy, test_f_score, test_loss, predDict,classification_report,confusion_matrix,featureDict = test_score_model(
             model, test_dataloader, loss_fct
         )
         
@@ -624,8 +624,10 @@ def train(
             
             print(classification_report)
             print(confusion_matrix)
-            np.save(f"test_features_late.npy", all_features)
 
+
+            with open(f"test_features_late.pkl", 'wb') as f:
+                pickle.dump(featureDict, f)
         # else:
             # epochs_without_improvement +=1
             
