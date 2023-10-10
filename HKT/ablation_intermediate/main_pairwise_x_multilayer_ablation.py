@@ -516,10 +516,11 @@ def test_epoch(model, test_data_loader, loss_fct,save_features=True):
             
 
             if save_features:
-                if len(preds) == 0:
-                    all_features = outputs[1].detach().cpu().numpy()
-                else:
-                    np.append(all_features,outputs[1].detach().cpu().numpy(), axis=0)
+                all_features.append(outputs[1].detach().cpu().numpy())
+                # if len(preds) == 0:
+                #     all_features = outputs[1].detach().cpu().numpy()
+                # else:
+                #     np.append(all_features,outputs[1].detach().cpu().numpy(), axis=0)
             
             
             
@@ -542,8 +543,7 @@ def test_epoch(model, test_data_loader, loss_fct,save_features=True):
                 )
                 all_ids = np.append(all_ids,data_ids.detach().cpu().numpy(), axis=0)
                 
-                
-        all_features = np.concatenate(all_features, axis=0)        
+        all_features = np.concatenate(all_features, axis=0)
         eval_loss = eval_loss / nb_eval_steps
         preds = np.squeeze(preds)
         all_labels = np.squeeze(all_labels)
