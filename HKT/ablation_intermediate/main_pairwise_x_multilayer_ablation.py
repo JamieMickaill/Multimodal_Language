@@ -494,22 +494,26 @@ def test_epoch(model, test_data_loader, loss_fct,save_features=True):
                     attention_mask=input_mask,
                     labels=None,
                 )
+                logits = outputs[0]
             elif args.model == "acoustic_only":
                 outputs = model(
                     acoustic
-                )[0]
+                )
+                logits = outputs[0][0]
+
             elif args.model == "visual_only":
                 outputs = model(
                     visual
-                )[0]
+                )
+                logits = outputs[0][0]
             elif args.model=="hcf_only":
-                outputs=model(hcf)[0]
-                
+                outputs=model(hcf)
+                logits = outputs[0][0]
             elif args.model=="HKT":
                 outputs = model(input_ids, visual, acoustic,hcf, token_type_ids=segment_ids, attention_mask=input_mask,)
+                logits = outputs[0]
             
             
-            logits = outputs[0]
 
             if save_features:
                 if len(preds) == 0:
