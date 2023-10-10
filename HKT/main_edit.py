@@ -545,7 +545,7 @@ def test_epoch(model, test_data_loader, loss_fct, save_features=True):
                 )
                 
                 
-                
+        all_features = np.concatenate(all_features, axis=0)
         eval_loss = eval_loss / nb_eval_steps
         preds = np.squeeze(preds)
         all_labels = np.squeeze(all_labels)
@@ -619,7 +619,7 @@ def train(
         )
         
 
-        if(test_accuracy <= best_valid_test_accuracy):
+        if(best_valid_test_accuracy <= test_accuracy):
             best_valid_loss = valid_loss
             best_valid_test_accuracy = test_accuracy
             best_valid_test_fscore= test_f_score
