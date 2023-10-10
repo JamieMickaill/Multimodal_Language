@@ -354,7 +354,7 @@ class HKT(nn.Module):
         out = self.fc(all_features_embedding[:,0,:])
 
 
-        return (out, all_features_embedding)
+        return (out, all_features_embedding[:,0,:])
 
 
 #early fusion no unimodal encoders
