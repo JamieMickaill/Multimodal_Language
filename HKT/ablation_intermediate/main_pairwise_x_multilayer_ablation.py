@@ -519,7 +519,7 @@ def test_epoch(model, test_data_loader, loss_fct,save_features=True):
                 if len(preds) == 0:
                     all_features = outputs[1].detach().cpu().numpy()
                 else:
-                    np.append(all_features,outputs[1].detach().cpu().numpy(), axis=0)
+                    np.append(all_features,outputs[1].detach().cpu().numpy(), axis=1)
             
             
             
