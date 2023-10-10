@@ -640,6 +640,7 @@ def train(
                     import json
                     json.dump(predDict, fp)
             np.save(f"test_features_intermediate_{str(wandb.run.id)}.npy", all_features)
+            print(f"Size of features {all_features.shape}")
 
             
             print(classification_report)
