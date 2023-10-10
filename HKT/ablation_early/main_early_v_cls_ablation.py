@@ -611,7 +611,7 @@ def train(
         )
 
 
-        test_accuracy, test_f_score, test_loss, predDict,classification_report,confusion_matrix,features = test_score_model(
+        test_accuracy, test_f_score, test_loss, predDict,classification_report,confusion_matrix,featuredict = test_score_model(
             model, test_dataloader, loss_fct
         )
         
@@ -630,7 +630,9 @@ def train(
                 with open('performanceDictX.json', 'w') as fp:
                     import json
                     json.dump(predDict, fp)
-            np.save("test_features_early.npy", features)
+
+            with open(f"test_features_early_{str(wandb.run.id)}.pkl", 'wb') as f:
+                pickle.dump(featuredict, f)
             
             print(classification_report)
             print(confusion_matrix)
