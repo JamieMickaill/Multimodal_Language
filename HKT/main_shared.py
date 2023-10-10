@@ -545,6 +545,7 @@ def train(
 ):
        
     best_valid_loss = 9e+9
+    best_valid_test_accuracy = 0
     run_name = str(wandb.run.id)
     valid_losses = []
     
