@@ -73,7 +73,7 @@ class Transformer1(nn.Module):
         hidden = self.encoder(input, attention_mask=attention_mask)
         out = self.decoder(hidden) # (batch_size, seq_len, hidden_dim)
         out = (out[:,0,:], out, hidden) # ([CLS] token embedding, full output, last hidden layer)
-        return (out,hidden)
+        return (out,out[:,0,:])
 
 
 class TransformerLayer(nn.Module):
