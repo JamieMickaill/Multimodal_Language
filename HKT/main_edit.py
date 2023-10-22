@@ -334,9 +334,10 @@ def convert_mosi_to_features(examples):
 
         # Padding sequences to ensure all sequences are of length args.max_seq_length
         padding_len = args.max_seq_length - len(input_ids)
-        input_ids += [0] * padding_len
-        input_mask += [0] * padding_len
-        segment_ids += [0] * padding_len
+        input_ids = np.append(input_ids, [0] * padding_len).astype(int)
+        input_mask = np.append(input_mask, [0] * padding_len).astype(int)
+        segment_ids = np.append(segment_ids, [0] * padding_len).astype(int)
+
 
         vision_padding = np.zeros((padding_len, VISUAL_DIM_ALL))
         vision = np.concatenate((vision, vision_padding))
