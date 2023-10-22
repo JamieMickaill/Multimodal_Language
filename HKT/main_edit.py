@@ -705,8 +705,8 @@ def train(
     optimizer,
     scheduler,
     loss_fct,
-        regression=False
-    save_features = True,
+        regression=False,
+    save_features = True
 ):
     best_valid_test_accuracy = 0
     best_valid_test_fscore = 0
