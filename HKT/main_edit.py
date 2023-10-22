@@ -395,6 +395,7 @@ def get_appropriate_dataset(data, tokenizer, parition, mosi=False):
 
 
 def set_up_data_loader():
+    mosi=False
     if args.dataset=="humor":
         data_file = "ur_funny.pkl"
     elif args.dataset=="humour_+":
@@ -404,6 +405,7 @@ def set_up_data_loader():
     elif args.dataset=="sarcasm":
         data_file = "mustard.pkl"
     elif args.dataset=="mosi":
+        mosi=True
         data_file = 'mosi_datasets_bert.pkl'
         
     with open(
@@ -418,9 +420,11 @@ def set_up_data_loader():
 
     tokenizer = AlbertTokenizer.from_pretrained("albert-base-v2")
 
-    train_dataset = get_appropriate_dataset(train_data, tokenizer, "train")
-    dev_dataset = get_appropriate_dataset(dev_data, tokenizer, "dev")
-    test_dataset = get_appropriate_dataset(test_data, tokenizer, "test")
+
+
+    train_dataset = get_appropriate_dataset(train_data, tokenizer, "train", mosi)
+    dev_dataset = get_appropriate_dataset(dev_data, tokenizer, "dev", mosi)
+    test_dataset = get_appropriate_dataset(test_data, tokenizer, "test", mosi)
 
     train_dataloader = DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=1
