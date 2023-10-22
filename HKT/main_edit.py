@@ -40,6 +40,9 @@ from models_edit import *
 from transformers.optimization import AdamW
 
 
+from models.subNets.BertTextEncoder import BertTextEncoder
+
+
 def return_unk():
     return 0
 
@@ -48,7 +51,7 @@ parser.add_argument(
     "--model", type=str, choices=["HKT","language_only", "acoustic_only", "visual_only","hcf_only"], default="HKT",
 )
 
-parser.add_argument("--dataset", type=str, choices=["humor", "humour_+","humour_new", "sarcasm"], default="sarcasm")
+parser.add_argument("--dataset", type=str, choices=["humor", "humour_+","humour_new", "sarcasm", "mosi"], default="sarcasm")
 parser.add_argument("--batch_size", type=int, default=16)
 parser.add_argument("--max_seq_length", type=int, default=85)
 parser.add_argument("--n_layers", type=int, default=1)
@@ -287,11 +290,54 @@ def convert_humor_to_features(examples, tokenizer, punchline_only=False):
     return features
 
 
+def convert_mosi_to_features(examples):
+    features = []
 
-def get_appropriate_dataset(data, tokenizer, parition):
+    for (ex_index, example) in enumerate(examples):
+        raw_text, audio, vision, text_bert, annotations, classification_labels, regression_labels = (
+            example['raw_text'],
+            example['audio'],
+            example['vision'],
+            example['text_bert'],
+            example['annotations'],
+            example['classification_labels'],
+            example['regression_labels']
+        )
+
+        # Extracting input_ids, input_mask, and segment_ids from text_bert
+        input_ids = text_bert[0]
+        input_mask = text_bert[1]
+        segment_ids = text_bert[2]
+
+        visual = np.concatenate((np.zeros((1, VISUAL_DIM_ALL)), vision, np.zeros((1, VISUAL_DIM_ALL))))
+        acoustic = np.concatenate((np.zeros((1, ACOUSTIC_DIM_ALL)), audio, np.zeros((1, ACOUSTIC_DIM_ALL))))
+
+        # Setting HCF to zeros as per previous request
+        hcf = np.zeros((args.max_seq_length, HCF_DIM_ALL))
+
+        label_id = float(regression_labels)  # Modify based on your dataset's labels
+
+        features.append(
+            InputFeatures(
+                input_ids=input_ids,
+                input_mask=input_mask,
+                segment_ids=segment_ids,
+                visual=visual,
+                acoustic=acoustic,
+                hcf=hcf,
+                label_id=label_id,
+            )
+        )
+
+    return features
+
+def get_appropriate_dataset(data, tokenizer, parition, mosi=False):
     
+    if mosi:
+        features = convert_mosi_to_features(data)
+    else:
+        features = convert_humor_to_features(data, tokenizer)
 
-    features = convert_humor_to_features(data, tokenizer)
     all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
     all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
     all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
@@ -323,6 +369,8 @@ def set_up_data_loader():
         data_file = "ur_funny_new_hcf.pkl"
     elif args.dataset=="sarcasm":
         data_file = "mustard.pkl"
+    elif args.dataset=="mosi":
+        data_file = 'mosi_datasets_bert.pkl'
         
     with open(
         os.path.join(DATASET_LOCATION, data_file),
@@ -567,6 +615,7 @@ def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False, save
     
     featureList = [x for x in zip(y_test,all_features)]
 
+
     predictions = predictions.round()
 
     f_score = f1_score(y_test, predictions, average="weighted")
@@ -676,6 +725,9 @@ def prep_for_training(num_training_steps):
     
     
     if args.model == "language_only":
+
+        if args.dataset == "mosi":
+            model = BertTextEncoder(language='en', use_finetune=True)
         model = AlbertForSequenceClassification.from_pretrained(
             "albert-base-v2", num_labels=1
         )
@@ -709,6 +761,8 @@ def prep_for_training(num_training_steps):
             acoustic_model.load_state_dict(torch.load("./model_weights/init/sarcasm/sarcasmAcousticTransformer.pt"))
             hcf_model = Transformer(HCF_DIM, num_layers=8, nhead=4, dim_feedforward=128)
             hcf_model.load_state_dict(torch.load("./model_weights/init/sarcasm/sarcasmHCFTransformer.pt"))
+
+        
         
         text_model = AlbertModel.from_pretrained('albert-base-v2')
         model = HKT(text_model, visual_model, acoustic_model,hcf_model, args)
@@ -717,8 +771,11 @@ def prep_for_training(num_training_steps):
         raise ValueError("Requested model is not available")
 
     model.to(DEVICE)
-    
-    loss_fct = BCEWithLogitsLoss()
+
+    if args.dataset=="mosi":
+        loss_fct = torch.nn.MSELoss()
+    else:
+        loss_fct = BCEWithLogitsLoss()
     
 
     # Prepare optimizer
@@ -770,7 +827,7 @@ def set_random_seed(seed):
 
 def main():
     
-    wandb.init(project="Fusion_Final", group="Unimodal_HCF")
+    wandb.init(project="Fusion_Final_Extra", group="Unimodal_HCF")
     wandb.config.update(args)
     
     if(args.seed == -1):

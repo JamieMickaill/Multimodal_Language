@@ -40,6 +40,7 @@ from models_pairwise_x_multilayer_ablation import *
 from transformers.optimization import AdamW
 
 
+
 def return_unk():
     return 0
 
@@ -515,8 +516,10 @@ def test_epoch(model, test_data_loader, loss_fct,save_features=True):
             
             
 
-            if save_features:
+            if save_features and args.model != "language_only":
                 all_features.append(outputs[1].detach().cpu().numpy())
+            else:
+                all_features.append(outputs[0].detach().cpu().numpy())
                 # if len(preds) == 0:
                 #     all_features = outputs[1].detach().cpu().numpy()
                 # else:
