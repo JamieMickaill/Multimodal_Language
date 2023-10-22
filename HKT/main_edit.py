@@ -17,6 +17,7 @@ from sklearn.metrics import classification_report
 from sklearn.metrics import confusion_matrix
 from sklearn.metrics import precision_recall_fscore_support
 from sklearn.metrics import accuracy_score, f1_score
+from sklearn.metrics import mean_absolute_error, mean_squared_error
 
 import torch
 import torch.nn as nn
@@ -442,7 +443,7 @@ def set_up_data_loader():
     
     return train_dataloader, dev_dataloader, test_dataloader
 
-def train_epoch(model, train_dataloader, optimizer, scheduler, loss_fct):
+def train_epoch(model, train_dataloader, optimizer, scheduler, loss_fct, regression=False):
     model.train()
     tr_loss = 0
     nb_tr_examples, nb_tr_steps = 0, 0
@@ -506,7 +507,7 @@ def train_epoch(model, train_dataloader, optimizer, scheduler, loss_fct):
 
 
 
-def eval_epoch(model, dev_dataloader, loss_fct):
+def eval_epoch(model, dev_dataloader, loss_fct, regression=False):
     
     model.eval()
     dev_loss = 0
@@ -559,7 +560,7 @@ def eval_epoch(model, dev_dataloader, loss_fct):
 
     return dev_loss/nb_dev_steps
 
-def test_epoch(model, test_data_loader, loss_fct, save_features=True):
+def test_epoch(model, test_data_loader, loss_fct, save_features=True, regression = False):
     """ Epoch operation in evaluation phase """
     model.eval()
 
@@ -620,7 +621,8 @@ def test_epoch(model, test_data_loader, loss_fct, save_features=True):
             eval_loss += tmp_eval_loss.mean().item()
             nb_eval_steps += 1
             
-            logits = torch.sigmoid(logits)
+            if not regression:
+                logits = torch.sigmoid(logits)
             
             if len(preds) == 0:
                 preds=logits.detach().cpu().numpy()
@@ -642,6 +644,27 @@ def test_epoch(model, test_data_loader, loss_fct, save_features=True):
         return preds, all_labels, eval_loss
 
 
+
+def test_score_model_reg(model, test_data_loader, loss_fct, exclude_zero=False, save_features = True):
+
+    if save_features:
+        predictions, y_test, test_loss, all_features = test_epoch(model, test_data_loader, loss_fct, save_features=True)
+        # Save features to disk or do further processing
+    else:
+        predictions, y_test, test_loss = test_epoch(model, test_data_loader, loss_fct)
+    
+    featureList = [x for x in zip(y_test,all_features)]
+
+
+    # Remove the rounding
+    # predictions = predictions.round()
+
+    # Calculate regression metrics
+    mae = mean_absolute_error(y_test, predictions)
+    rmse = mean_squared_error(y_test, predictions, squared=False)
+
+    print("Mean Absolute Error:", mae, "Root Mean Squared Error:", rmse)
+    return mae, rmse, test_loss, featureList
 
 
 def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False, save_features = True):
@@ -678,10 +701,12 @@ def train(
     scheduler,
     loss_fct,
     save_features = True,
+    regression=False
 ):
     best_valid_test_accuracy = 0
     best_valid_test_fscore = 0
     best_valid_loss = 9e+9
+    best_test_mae = 9e+9
     run_name = str(wandb.run.id)
     valid_losses = []
     
@@ -691,9 +716,9 @@ def train(
     for epoch_i in range(n_epochs):
         
         train_loss = train_epoch(
-            model, train_dataloader, optimizer, scheduler, loss_fct
+            model, train_dataloader, optimizer, scheduler, loss_fct, regression
         )
-        valid_loss = eval_epoch(model, dev_dataloader, loss_fct)
+        valid_loss = eval_epoch(model, dev_dataloader, loss_fct,regression)
 
         valid_losses.append(valid_loss)
         print(
@@ -702,33 +727,62 @@ def train(
             )
         )
 
-        test_accuracy, test_f_score, test_loss, featureList = test_score_model(
-            model, test_dataloader, loss_fct
-        )
+        if regression:
+            test_mae, test_rmse, test_loss, featureList = test_score_model_reg(
+                model, test_dataloader, loss_fct
+            )
+
+            if(best_test_mae >= test_mae):
+                best_valid_loss = valid_loss
+                best_test_mae = test_mae
+                best_test_rmse= test_rmse
+                
+                if(args.save_weight == "True"):
+                    torch.save(model.state_dict(),'./best_weights/'+run_name+'.pt')
+
+                with open(f"test_features_HKT.pkl", 'wb') as f:
+                    pickle.dump(featureList, f)        
+
+                #we report test_accuracy of the best valid loss (best_valid_test_accuracy)
+                wandb.log(
+                    {
+                        "train_loss": train_loss,
+                        "valid_loss": valid_loss,
+                        "test_loss": test_loss,
+                        "best_valid_loss": best_valid_loss,
+                        "best_test_mae": test_mae,
+                        "best_test_rmse": test_rmse
+                    }
+                )
+
+        else:
+            test_accuracy, test_f_score, test_loss, featureList = test_score_model(
+                model, test_dataloader, loss_fct
+            )
         
 
-        if(best_valid_test_accuracy <= test_accuracy):
-            best_valid_loss = valid_loss
-            best_valid_test_accuracy = test_accuracy
-            best_valid_test_fscore= test_f_score
-            
-            if(args.save_weight == "True"):
-                torch.save(model.state_dict(),'./best_weights/'+run_name+'.pt')
+            if(best_valid_test_accuracy <= test_accuracy):
+                best_valid_loss = valid_loss
+                best_valid_test_accuracy = test_accuracy
+                best_valid_test_fscore= test_f_score
+                
+                if(args.save_weight == "True"):
+                    torch.save(model.state_dict(),'./best_weights/'+run_name+'.pt')
 
-            with open(f"test_features_HKT.pkl", 'wb') as f:
-                pickle.dump(featureList, f)
+                with open(f"test_features_HKT.pkl", 'wb') as f:
+                    pickle.dump(featureList, f)
 
-        #we report test_accuracy of the best valid loss (best_valid_test_accuracy)
-        wandb.log(
-            {
-                "train_loss": train_loss,
-                "valid_loss": valid_loss,
-                "test_loss": test_loss,
-                "best_valid_loss": best_valid_loss,
-                "best_valid_test_accuracy": best_valid_test_accuracy,
-                "best_valid_test_fscore":best_valid_test_fscore
-            }
-        )
+            #we report test_accuracy of the best valid loss (best_valid_test_accuracy)
+            wandb.log(
+                {
+                    "train_loss": train_loss,
+                    "valid_loss": valid_loss,
+                    "test_loss": test_loss,
+                    "best_valid_loss": best_valid_loss,
+                    "best_valid_test_accuracy": best_valid_test_accuracy,
+                    "best_valid_test_fscore":best_valid_test_fscore
+                }
+            )
         
 
 
@@ -887,6 +941,10 @@ def main():
         num_training_steps
     )
     print("Model Loaded: ",args.model)
+    if args.dataset == "mosi":
+        regression=True
+    else:
+        regression=False
     train(
         model,
         train_dataloader,
@@ -895,6 +953,7 @@ def main():
         optimizers,
         schedulers,
         loss_fct,
+        regression
     )
     
 
