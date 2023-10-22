@@ -751,7 +751,7 @@ def train(
                         "test_loss": test_loss,
                         "best_valid_loss": best_valid_loss,
                         "best_test_mae": test_mae,
-                        "best_test_rmse": test_rmse
+                        "best_test_rmse": best_test_rmse
                     }
                 )
 
@@ -941,7 +941,9 @@ def main():
         num_training_steps
     )
     print("Model Loaded: ",args.model)
+
     if args.dataset == "mosi":
+        print("Regression")
         regression=True
     else:
         regression=False
