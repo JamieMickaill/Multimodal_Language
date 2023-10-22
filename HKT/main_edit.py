@@ -560,7 +560,7 @@ def eval_epoch(model, dev_dataloader, loss_fct, regression=False):
 
     return dev_loss/nb_dev_steps
 
-def test_epoch(model, test_data_loader, loss_fct, save_features=True, regression = False):
+def test_epoch(model, test_data_loader, loss_fct, regression = False,save_features=True):
     """ Epoch operation in evaluation phase """
     model.eval()
 
@@ -658,7 +658,7 @@ def test_score_model_reg(model, test_data_loader, loss_fct, exclude_zero=False, 
         return mae, rmse, test_loss, featureList
 
     else:
-        predictions, y_test, test_loss = test_epoch(model, test_data_loader, loss_fct, regression)
+        predictions, y_test, test_loss = test_epoch(model, test_data_loader, loss_fct, regression,save_features=False)
     
 
         # Remove the rounding
