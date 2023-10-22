@@ -103,6 +103,8 @@ def _truncate_seq_pair(tokens_a, tokens_b, max_length):
             tokens_a.pop(0)
     return pop_count
 
+
+
 #albert tokenizer split words in to subwords. "_" marker helps to find thos sub words
 #our acoustic and visual features are aligned on word level. So we just create copy the same 
 #visual/acoustic vectors that belong to same word.
@@ -289,6 +291,20 @@ def convert_humor_to_features(examples, tokenizer, punchline_only=False):
             
     return features
 
+import numpy as np
+import pickle
+
+# Assuming VISUAL_DIM_ALL, ACOUSTIC_DIM_ALL, HCF_DIM_ALL are defined elsewhere
+
+def _truncate_seq_single(tokens, max_length, features=None):
+    """Truncates a single sequence in place to the maximum length.
+    
+    If features are provided, truncates them as well.
+    """
+    while len(tokens) > max_length:
+        tokens.pop()
+        if features:
+            features.pop()
 
 def convert_mosi_to_features(examples):
     features = []
@@ -309,27 +325,45 @@ def convert_mosi_to_features(examples):
         input_mask = text_bert[1]
         segment_ids = text_bert[2]
 
-        visual = np.concatenate((np.zeros((1, VISUAL_DIM_ALL)), vision, np.zeros((1, VISUAL_DIM_ALL))))
-        acoustic = np.concatenate((np.zeros((1, ACOUSTIC_DIM_ALL)), audio, np.zeros((1, ACOUSTIC_DIM_ALL))))
+        # Truncating sequences to fit within max_seq_length
+        _truncate_seq_single(input_ids, args.max_seq_length)
+        _truncate_seq_single(input_mask, args.max_seq_length)
+        _truncate_seq_single(segment_ids, args.max_seq_length)
+        _truncate_seq_single(vision, args.max_seq_length, features=vision)
+        _truncate_seq_single(audio, args.max_seq_length, features=audio)
 
-        # Setting HCF to zeros as per previous request
+        # Padding sequences to ensure all sequences are of length args.max_seq_length
+        padding_len = args.max_seq_length - len(input_ids)
+        input_ids += [0] * padding_len
+        input_mask += [0] * padding_len
+        segment_ids += [0] * padding_len
+
+        vision_padding = np.zeros((padding_len, VISUAL_DIM_ALL))
+        vision = np.concatenate((vision, vision_padding))
+
+        acoustic_padding = np.zeros((padding_len, ACOUSTIC_DIM_ALL))
+        audio = np.concatenate((audio, acoustic_padding))
+
+        # Setting HCF to zeros
         hcf = np.zeros((args.max_seq_length, HCF_DIM_ALL))
 
-        label_id = float(regression_labels)  # Modify based on your dataset's labels
+        label_id = float(classification_labels)  # Modify based on your dataset's labels
 
         features.append(
             InputFeatures(
                 input_ids=input_ids,
                 input_mask=input_mask,
                 segment_ids=segment_ids,
-                visual=visual,
-                acoustic=acoustic,
+                visual=vision,
+                acoustic=audio,
                 hcf=hcf,
                 label_id=label_id,
             )
         )
 
     return features
+
+# The rest of the dataset creation code remains unchanged...
 
 def get_appropriate_dataset(data, tokenizer, parition, mosi=False):
     
