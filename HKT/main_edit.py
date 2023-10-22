@@ -645,26 +645,31 @@ def test_epoch(model, test_data_loader, loss_fct, save_features=True, regression
 
 
 
-def test_score_model_reg(model, test_data_loader, loss_fct, exclude_zero=False, save_features = True):
+def test_score_model_reg(model, test_data_loader, loss_fct, exclude_zero=False, save_features = True, regression=False):
 
     if save_features:
-        predictions, y_test, test_loss, all_features = test_epoch(model, test_data_loader, loss_fct, save_features=True)
+        predictions, y_test, test_loss, all_features = test_epoch(model, test_data_loader, loss_fct,regression save_features=True )
         # Save features to disk or do further processing
+        featureList = [x for x in zip(y_test,all_features)]
+        mae = mean_absolute_error(y_test, predictions)
+        rmse = mean_squared_error(y_test, predictions, squared=False)
+
+        print("Mean Absolute Error:", mae, "Root Mean Squared Error:", rmse)
+        return mae, rmse, test_loss, featureList
+
     else:
-        predictions, y_test, test_loss = test_epoch(model, test_data_loader, loss_fct)
+        predictions, y_test, test_loss = test_epoch(model, test_data_loader, loss_fct, regression)
     
-    featureList = [x for x in zip(y_test,all_features)]
 
+        # Remove the rounding
+        # predictions = predictions.round()
 
-    # Remove the rounding
-    # predictions = predictions.round()
+        # Calculate regression metrics
+        mae = mean_absolute_error(y_test, predictions)
+        rmse = mean_squared_error(y_test, predictions, squared=False)
 
-    # Calculate regression metrics
-    mae = mean_absolute_error(y_test, predictions)
-    rmse = mean_squared_error(y_test, predictions, squared=False)
-
-    print("Mean Absolute Error:", mae, "Root Mean Squared Error:", rmse)
-    return mae, rmse, test_loss, featureList
+        print("Mean Absolute Error:", mae, "Root Mean Squared Error:", rmse)
+        return mae, rmse, test_loss
 
 
 def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False, save_features = True):
@@ -700,8 +705,8 @@ def train(
     optimizer,
     scheduler,
     loss_fct,
+        regression=False
     save_features = True,
-    regression=False
 ):
     best_valid_test_accuracy = 0
     best_valid_test_fscore = 0
@@ -727,9 +732,9 @@ def train(
             )
         )
 
-        if regression:
+        if regression==True:
             test_mae, test_rmse, test_loss, featureList = test_score_model_reg(
-                model, test_dataloader, loss_fct
+                model, test_dataloader, loss_fct, regression
             )
 
             if(best_test_mae >= test_mae):
