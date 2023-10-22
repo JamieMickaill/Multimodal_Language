@@ -648,7 +648,7 @@ def test_epoch(model, test_data_loader, loss_fct, save_features=True, regression
 def test_score_model_reg(model, test_data_loader, loss_fct, exclude_zero=False, save_features = True, regression=False):
 
     if save_features:
-        predictions, y_test, test_loss, all_features = test_epoch(model, test_data_loader, loss_fct,regression save_features=True )
+        predictions, y_test, test_loss, all_features = test_epoch(model, test_data_loader, loss_fct,regression, save_features=True )
         # Save features to disk or do further processing
         featureList = [x for x in zip(y_test,all_features)]
         mae = mean_absolute_error(y_test, predictions)
