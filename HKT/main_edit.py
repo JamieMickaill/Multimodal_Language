@@ -612,9 +612,10 @@ def test_epoch(model, test_data_loader, loss_fct, regression = False,save_featur
             
             logits = outputs[0]
 
-            if save_features:
+            if save_features and args.model != "language_only":
                 all_features.append(outputs[1].detach().cpu().numpy())
-            
+            else:
+                all_features.append(outputs[0].detach().cpu().numpy())
             
             tmp_eval_loss = loss_fct(logits.view(-1), label_ids.view(-1))
 
