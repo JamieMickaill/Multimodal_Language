@@ -465,12 +465,16 @@ def train_epoch(model, train_dataloader, optimizer, scheduler, loss_fct, regress
         acoustic = torch.squeeze(acoustic, 1)
 
         if args.model == "language_only":
-            outputs = model(
-                input_ids,
-                token_type_ids=segment_ids,
-                attention_mask=input_mask,
-                labels=None,
-            )
+            if args.dataset=="mosi":
+                inputs = np.concatenate(input_ids,input_mask,segment_ids)
+                outputs = model(inputs)
+            else:
+                outputs = model(
+                    input_ids,
+                    token_type_ids=segment_ids,
+                    attention_mask=input_mask,
+                    labels=None,
+                )
         elif args.model == "acoustic_only":
             outputs = model(
                 acoustic
@@ -530,12 +534,16 @@ def eval_epoch(model, dev_dataloader, loss_fct, regression=False):
             acoustic = torch.squeeze(acoustic, 1)
     
             if args.model == "language_only":
-                outputs = model(
-                    input_ids,
-                    token_type_ids=segment_ids,
-                    attention_mask=input_mask,
-                    labels=None,
-                )
+                if args.dataset=="mosi":
+                    inputs = np.concatenate(input_ids,input_mask,segment_ids)
+                    outputs = model(inputs)
+                else:
+                    outputs = model(
+                        input_ids,
+                        token_type_ids=segment_ids,
+                        attention_mask=input_mask,
+                        labels=None,
+                    )
             elif args.model == "acoustic_only":
                 outputs = model(
                     acoustic
@@ -589,12 +597,16 @@ def test_epoch(model, test_data_loader, loss_fct, regression = False,save_featur
             acoustic = torch.squeeze(acoustic, 1)
             
             if args.model == "language_only":
-                outputs = model(
-                    input_ids,
-                    token_type_ids=segment_ids,
-                    attention_mask=input_mask,
-                    labels=None,
-                )
+                if args.dataset=="mosi":
+                    inputs = np.concatenate(input_ids,input_mask,segment_ids)
+                    outputs = model(inputs)
+                else:
+                    outputs = model(
+                        input_ids,
+                        token_type_ids=segment_ids,
+                        attention_mask=input_mask,
+                        labels=None,
+                    )
             elif args.model == "acoustic_only":
                 outputs = model(
                     acoustic
@@ -824,12 +836,12 @@ def prep_for_training(num_training_steps):
     
     
     if args.model == "language_only":
-
         if args.dataset == "mosi":
             model = BertTextEncoder(language='en', use_finetune=True)
-        model = AlbertForSequenceClassification.from_pretrained(
-            "albert-base-v2", num_labels=1
-        )
+        else:
+            model = AlbertForSequenceClassification.from_pretrained(
+                "albert-base-v2", num_labels=1
+            )
     elif args.model == "acoustic_only":
         model = Transformer(ACOUSTIC_DIM, num_layers=args.n_layers, nhead=args.n_heads, dim_feedforward=args.fc_dim)
         
