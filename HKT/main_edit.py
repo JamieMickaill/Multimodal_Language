@@ -41,8 +41,7 @@ from models_edit import *
 from transformers.optimization import AdamW
 
 
-from models.subNets.BertTextEncoder import BertTextEncoder
-
+from models.subNets.BertTextEncoder import BertTextEncoderRegressionHead
 
 def return_unk():
     return 0
@@ -295,82 +294,192 @@ def convert_humor_to_features(examples, tokenizer, punchline_only=False):
 import numpy as np
 import pickle
 
-# Assuming VISUAL_DIM_ALL, ACOUSTIC_DIM_ALL, HCF_DIM_ALL are defined elsewhere
 
-def _truncate_seq_single(tokens, max_length, features=None):
-    """Truncates a single sequence in place to the maximum length.
-    
-    If features are provided, truncates them as well.
-    """
-    while len(tokens) > max_length:
-        tokens.pop()
-        if features:
-            features.pop()
-
-def convert_mosi_to_features(examples):
+def convert_to_features_mosi(examples, max_seq_length, tokenizer):
     features = []
 
     for (ex_index, example) in enumerate(examples):
-        raw_text, audio, vision, text_bert, annotations, classification_labels, regression_labels = (
-            example['raw_text'],
-            example['audio'],
-            example['vision'],
-            example['text_bert'],
-            example['annotations'],
-            example['classification_labels'],
-            example['regression_labels']
-        )
 
-        # Extracting input_ids, input_mask, and segment_ids from text_bert
-        input_ids = text_bert[0]
-        input_mask = text_bert[1]
-        segment_ids = text_bert[2]
+        (words, visual, acoustic), label_id, segment = example
 
-        # Truncating sequences to fit within max_seq_length
-        _truncate_seq_single(input_ids, args.max_seq_length)
-        _truncate_seq_single(input_mask, args.max_seq_length)
-        _truncate_seq_single(segment_ids, args.max_seq_length)
-        _truncate_seq_single(vision, args.max_seq_length, features=vision)
-        _truncate_seq_single(audio, args.max_seq_length, features=audio)
+        tokens, inversions = [], []
+        for idx, word in enumerate(words):
+            tokenized = tokenizer.tokenize(word)
+            tokens.extend(tokenized)
+            inversions.extend([idx] * len(tokenized))
 
-        # Padding sequences to ensure all sequences are of length args.max_seq_length
-        padding_len = args.max_seq_length - len(input_ids)
-        input_ids = np.append(input_ids, [0] * padding_len).astype(int)
-        input_mask = np.append(input_mask, [0] * padding_len).astype(int)
-        segment_ids = np.append(segment_ids, [0] * padding_len).astype(int)
+        # Check inversion
+        assert len(tokens) == len(inversions)
 
+        aligned_visual = []
+        aligned_audio = []
 
-        vision_padding = np.zeros((padding_len, VISUAL_DIM_ALL))
-        vision = np.concatenate((vision, vision_padding))
+        for inv_idx in inversions:
+            aligned_visual.append(visual[inv_idx, :])
+            aligned_audio.append(acoustic[inv_idx, :])
 
-        acoustic_padding = np.zeros((padding_len, ACOUSTIC_DIM_ALL))
-        audio = np.concatenate((audio, acoustic_padding))
+        visual = np.array(aligned_visual)
+        acoustic = np.array(aligned_audio)
 
-        # Setting HCF to zeros
+        # Truncate input if necessary
+        if len(tokens) > max_seq_length - 2:
+            tokens = tokens[: max_seq_length - 2]
+            acoustic = acoustic[: max_seq_length - 2]
+            visual = visual[: max_seq_length - 2]
+
+        # if args.model == "bert-base-uncased":
+        prepare_input = prepare_bert_input
+        # elif args.model == "xlnet-base-cased":
+        #     prepare_input = prepare_xlnet_input
         hcf = np.zeros((args.max_seq_length, HCF_DIM_ALL))
 
-        label_id = float(classification_labels)  # Modify based on your dataset's labels
+        input_ids, visual, acoustic, input_mask, segment_ids = prepare_input(
+            tokens, visual, acoustic, tokenizer
+        )
+
+        # Check input length
+        assert len(input_ids) == args.max_seq_length
+        assert len(input_mask) == args.max_seq_length
+        assert len(segment_ids) == args.max_seq_length
+        assert acoustic.shape[0] == args.max_seq_length
+        assert visual.shape[0] == args.max_seq_length
 
         features.append(
             InputFeatures(
                 input_ids=input_ids,
                 input_mask=input_mask,
                 segment_ids=segment_ids,
-                visual=vision,
-                acoustic=audio,
-                hcf=hcf,
+                visual=visual,
+                acoustic=acoustic,
+                hcf = hcf,
                 label_id=label_id,
             )
         )
-
     return features
+
+
+def prepare_bert_input(tokens, visual, acoustic, tokenizer):
+    CLS = tokenizer.cls_token
+    SEP = tokenizer.sep_token
+    tokens = [CLS] + tokens + [SEP]
+
+    # Pad zero vectors for acoustic / visual vectors to account for [CLS] / [SEP] tokens
+    acoustic_zero = np.zeros((1, ACOUSTIC_DIM))
+    acoustic = np.concatenate((acoustic_zero, acoustic, acoustic_zero))
+    visual_zero = np.zeros((1, VISUAL_DIM))
+    visual = np.concatenate((visual_zero, visual, visual_zero))
+
+    input_ids = tokenizer.convert_tokens_to_ids(tokens)
+    segment_ids = [0] * len(input_ids)
+    input_mask = [1] * len(input_ids)
+
+    pad_length = args.max_seq_length - len(input_ids)
+
+    acoustic_padding = np.zeros((pad_length, ACOUSTIC_DIM))
+    acoustic = np.concatenate((acoustic, acoustic_padding))
+
+    visual_padding = np.zeros((pad_length, VISUAL_DIM))
+    visual = np.concatenate((visual, visual_padding))
+
+    padding = [0] * pad_length
+
+    # Pad inputs
+    input_ids += padding
+    input_mask += padding
+    segment_ids += padding
+
+    return input_ids, visual, acoustic, input_mask, segment_ids
+
+
+
+
+def get_tokenizer(model):
+    # if model == "bert-base-uncased":
+    return BertTokenizer.from_pretrained("bert-base-uncased")
+    # elif model == "xlnet-base-cased":
+    #     return XLNetTokenizer.from_pretrained(model)
+    # else:
+    #     raise ValueError(
+    #         "Expected 'bert-base-uncased' or 'xlnet-base-cased, but received {}".format(
+    #             model
+    #         )
+    #     )
+
+
+# def _truncate_seq_single(tokens, max_length, features=None):
+#     """Truncates a single sequence in place to the maximum length.
+    
+#     If features are provided, truncates them as well.
+#     """
+#     while len(tokens) > max_length:
+#         tokens.pop()
+#         if features:
+#             features.pop()
+
+# def convert_mosi_to_features(examples):
+#     features = []
+
+#     for (ex_index, example) in enumerate(examples):
+#         raw_text, audio, vision, text_bert, annotations, classification_labels, regression_labels = (
+#             example['raw_text'],
+#             example['audio'],
+#             example['vision'],
+#             example['text_bert'],
+#             example['annotations'],
+#             example['classification_labels'],
+#             example['regression_labels']
+#         )
+
+#         # Extracting input_ids, input_mask, and segment_ids from text_bert
+#         input_ids = text_bert[0]
+#         input_mask = text_bert[1]
+#         segment_ids = text_bert[2]
+
+#         # Truncating sequences to fit within max_seq_length
+#         _truncate_seq_single(input_ids, args.max_seq_length)
+#         _truncate_seq_single(input_mask, args.max_seq_length)
+#         _truncate_seq_single(segment_ids, args.max_seq_length)
+#         _truncate_seq_single(vision, args.max_seq_length, features=vision)
+#         _truncate_seq_single(audio, args.max_seq_length, features=audio)
+
+#         # Padding sequences to ensure all sequences are of length args.max_seq_length
+#         padding_len = args.max_seq_length - len(input_ids)
+#         input_ids = np.append(input_ids, [0] * padding_len).astype(int)
+#         input_mask = np.append(input_mask, [0] * padding_len).astype(int)
+#         segment_ids = np.append(segment_ids, [0] * padding_len).astype(int)
+
+
+#         vision_padding = np.zeros((padding_len, VISUAL_DIM_ALL))
+#         vision = np.concatenate((vision, vision_padding))
+
+#         acoustic_padding = np.zeros((padding_len, ACOUSTIC_DIM_ALL))
+#         audio = np.concatenate((audio, acoustic_padding))
+
+#         # Setting HCF to zeros
+#         hcf = np.zeros((args.max_seq_length, HCF_DIM_ALL))
+
+#         label_id = float(classification_labels)  # Modify based on your dataset's labels
+
+#         features.append(
+#             InputFeatures(
+#                 input_ids=input_ids,
+#                 input_mask=input_mask,
+#                 segment_ids=segment_ids,
+#                 visual=vision,
+#                 acoustic=audio,
+#                 hcf=hcf,
+#                 label_id=label_id,
+#             )
+#         )
+
+#     return features
 
 # The rest of the dataset creation code remains unchanged...
 
 def get_appropriate_dataset(data, tokenizer, parition, mosi=False):
     
     if mosi:
-        features = convert_mosi_to_features(data)
+        features = convert_to_features_mosi(data,tokenizer=tokenizer,max_seq_length=args.max_seq_length)
     else:
         features = convert_humor_to_features(data, tokenizer)
 
@@ -408,7 +517,7 @@ def set_up_data_loader():
         data_file = "mustard.pkl"
     elif args.dataset=="mosi":
         mosi=True
-        data_file = 'mosi_datasets_bert.pkl'
+        data_file = 'mosi.pkl'
         
     with open(
         os.path.join(DATASET_LOCATION, data_file),
@@ -420,7 +529,10 @@ def set_up_data_loader():
     dev_data = all_data["dev"]
     test_data = all_data["test"]
 
-    tokenizer = AlbertTokenizer.from_pretrained("albert-base-v2")
+    if mosi:
+        tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+    else:
+        tokenizer = AlbertTokenizer.from_pretrained("albert-base-v2")
 
 
 
@@ -466,8 +578,12 @@ def train_epoch(model, train_dataloader, optimizer, scheduler, loss_fct, regress
 
         if args.model == "language_only":
             if args.dataset=="mosi":
-                inputs = np.concatenate(input_ids,input_mask,segment_ids)
-                outputs = model(inputs)
+                text = torch.tensor(np.concatenate((input_ids.cpu().numpy()[np.newaxis, :], 
+                   input_mask.cpu().numpy()[np.newaxis, :], 
+                   segment_ids.cpu().numpy()[np.newaxis, :]), axis=0)).to(DEVICE)
+
+
+                outputs = model(text.permute(1, 0, 2))
             else:
                 outputs = model(
                     input_ids,
@@ -535,8 +651,12 @@ def eval_epoch(model, dev_dataloader, loss_fct, regression=False):
     
             if args.model == "language_only":
                 if args.dataset=="mosi":
-                    inputs = np.concatenate(input_ids,input_mask,segment_ids)
-                    outputs = model(inputs)
+                    text = torch.tensor(np.concatenate((input_ids.cpu().numpy()[np.newaxis, :], 
+                   input_mask.cpu().numpy()[np.newaxis, :], 
+                   segment_ids.cpu().numpy()[np.newaxis, :]), axis=0)).to(DEVICE)
+
+
+                    outputs = model(text.permute(1, 0, 2))
                 else:
                     outputs = model(
                         input_ids,
@@ -598,8 +718,12 @@ def test_epoch(model, test_data_loader, loss_fct, regression = False,save_featur
             
             if args.model == "language_only":
                 if args.dataset=="mosi":
-                    inputs = np.concatenate(input_ids,input_mask,segment_ids)
-                    outputs = model(inputs)
+                    text = torch.tensor(np.concatenate((input_ids.cpu().numpy()[np.newaxis, :], 
+                   input_mask.cpu().numpy()[np.newaxis, :], 
+                   segment_ids.cpu().numpy()[np.newaxis, :]), axis=0)).to(DEVICE)
+
+
+                    outputs = model(text.permute(1, 0, 2))
                 else:
                     outputs = model(
                         input_ids,
@@ -622,7 +746,11 @@ def test_epoch(model, test_data_loader, loss_fct, regression = False,save_featur
                 outputs = model(input_ids, visual, acoustic,hcf, token_type_ids=segment_ids, attention_mask=input_mask,)
             
             
+            
             logits = outputs[0]
+
+
+
 
             if save_features and args.model != "language_only":
                 all_features.append(outputs[1].detach().cpu().numpy())
@@ -635,6 +763,7 @@ def test_epoch(model, test_data_loader, loss_fct, regression = False,save_featur
             nb_eval_steps += 1
             
             if not regression:
+                print("NOT REG")
                 logits = torch.sigmoid(logits)
             
             if len(preds) == 0:
@@ -651,6 +780,7 @@ def test_epoch(model, test_data_loader, loss_fct, regression = False,save_featur
         eval_loss = eval_loss / nb_eval_steps
         preds = np.squeeze(preds)
         all_labels = np.squeeze(all_labels)
+        # print(preds,all_labels)
     if save_features:
         return preds, all_labels, eval_loss, all_features
     else:
@@ -658,31 +788,59 @@ def test_epoch(model, test_data_loader, loss_fct, regression = False,save_featur
 
 
 
-def test_score_model_reg(model, test_data_loader, loss_fct, exclude_zero=False, save_features = True, regression=False):
+def test_score_model_reg(model, test_data_loader, loss_fct, exclude_zero=False, save_features = True, regression=False, use_zero=False):
 
     if save_features:
         predictions, y_test, test_loss, all_features = test_epoch(model, test_data_loader, loss_fct,regression, save_features=True )
+
         # Save features to disk or do further processing
         featureList = [x for x in zip(y_test,all_features)]
-        mae = mean_absolute_error(y_test, predictions)
-        rmse = mean_squared_error(y_test, predictions, squared=False)
 
-        print("Mean Absolute Error:", mae, "Root Mean Squared Error:", rmse)
-        return mae, rmse, test_loss, featureList
+        non_zeros = np.array(
+            [i for i, e in enumerate(y_test) if e != 0 or use_zero])
+
+        # print("Before filtering - predictions:", len(predictions))
+        # print("Before filtering - y_test:", len(y_test))
+        predictions = predictions[non_zeros]
+        y_test = y_test[non_zeros]
+        # print("filtering - predictions:", len(predictions))
+        # print(" filtering - y_test:", len(y_test))
+        mae = np.mean(np.absolute(predictions - y_test))
+        corr = np.corrcoef(predictions, y_test)[0][1]
+
+        predictions = predictions >= 0
+        y_test = y_test >= 0
+
+        f_score = f1_score(y_test, predictions, average="weighted")
+        acc = accuracy_score(y_test, predictions)
+
+
+
+        print("Mean Absolute Error:", mae, " Acc: ", acc, " cor: ",corr," f_score: ",f_score)
+        return acc, mae, corr, f_score, test_loss, featureList
 
     else:
         predictions, y_test, test_loss = test_epoch(model, test_data_loader, loss_fct, regression,save_features=False)
     
 
-        # Remove the rounding
-        # predictions = predictions.round()
 
-        # Calculate regression metrics
-        mae = mean_absolute_error(y_test, predictions)
-        rmse = mean_squared_error(y_test, predictions, squared=False)
+        non_zeros = np.array(
+            [i for i, e in enumerate(y_test) if e != 0 or use_zero])
 
-        print("Mean Absolute Error:", mae, "Root Mean Squared Error:", rmse)
-        return mae, rmse, test_loss
+        predictions = predictions[non_zeros]
+        y_test = y_test[non_zeros]
+
+        mae = np.mean(np.absolute(predictions - y_test))
+        corr = np.corrcoef(predictions, y_test)[0][1]
+
+        predictions = predictions >= 0
+        y_test = y_test >= 0
+
+        f_score = f1_score(y_test, predictions, average="weighted")
+        acc = accuracy_score(y_test, predictions)
+
+        print("Mean Absolute Error:", mae, " Acc: ", acc, " cor: ",corr," f_score: ",f_score)
+        return acc, mae, corr, f_score, test_loss
 
 
 def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False, save_features = True):
@@ -725,6 +883,7 @@ def train(
     best_valid_test_fscore = 0
     best_valid_loss = 9e+9
     best_test_mae = 9e+9
+    best_test_acc = 0
     run_name = str(wandb.run.id)
     valid_losses = []
     
@@ -746,19 +905,21 @@ def train(
         )
 
         if regression==True:
-            test_mae, test_rmse, test_loss, featureList = test_score_model_reg(
-                model, test_dataloader, loss_fct, regression
+            acc, mae, corr, f_score, test_loss, featureList = test_score_model_reg(
+                model, test_dataloader, loss_fct, regression=regression
             )
-
-            if(best_test_mae >= test_mae):
+            if(best_test_acc <= acc):
+                best_test_acc= acc
+            if(best_test_mae >= mae):
                 best_valid_loss = valid_loss
-                best_test_mae = test_mae
-                best_test_rmse= test_rmse
+                best_test_mae = mae
+
+                
                 
                 if(args.save_weight == "True"):
                     torch.save(model.state_dict(),'./best_weights/'+run_name+'.pt')
 
-                with open(f"test_features_HKT.pkl", 'wb') as f:
+                with open(f"test_features_{wandb.run.id}.pkl", 'wb') as f:
                     pickle.dump(featureList, f)        
 
                 #we report test_accuracy of the best valid loss (best_valid_test_accuracy)
@@ -768,8 +929,8 @@ def train(
                         "valid_loss": valid_loss,
                         "test_loss": test_loss,
                         "best_valid_loss": best_valid_loss,
-                        "best_test_mae": test_mae,
-                        "best_test_rmse": best_test_rmse
+                        "best_test_mae": best_test_mae,
+                        "best_test_acc": best_test_acc
                     }
                 )
 
@@ -837,7 +998,7 @@ def prep_for_training(num_training_steps):
     
     if args.model == "language_only":
         if args.dataset == "mosi":
-            model = BertTextEncoder(language='en', use_finetune=True)
+            model = BertTextEncoderRegressionHead(language='en', use_finetune=True)
         else:
             model = AlbertForSequenceClassification.from_pretrained(
                 "albert-base-v2", num_labels=1
@@ -973,7 +1134,7 @@ def main():
         optimizers,
         schedulers,
         loss_fct,
-        regression
+        regression=regression
     )
     
 

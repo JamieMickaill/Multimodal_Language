@@ -39,6 +39,9 @@ from transformers import (
 from models_pairwise_x_multilayer_ablation import *
 from transformers.optimization import AdamW
 
+import sys
+sys.path.append("..")
+from models.subNets.BertTextEncoder import BertTextEncoderRegressionHead
 
 
 def return_unk():
@@ -49,7 +52,7 @@ parser.add_argument(
     "--model", type=str, choices=["HKT","language_only", "acoustic_only", "visual_only","hcf_only"], default="HKT",
 )
 
-parser.add_argument("--dataset", type=str, choices=["humor", "sarcasm"], default="sarcasm")
+parser.add_argument("--dataset", type=str, choices=["humor", "sarcasm",  "mosi"], default="sarcasm")
 parser.add_argument("--batch_size", type=int, default=16)
 parser.add_argument("--max_seq_length", type=int, default=85)
 parser.add_argument("--n_layers", type=int, default=1)
@@ -274,10 +277,121 @@ def convert_humor_to_features(examples, tokenizer, punchline_only=False):
 
 
 
-def get_appropriate_dataset(data, tokenizer, parition):
-    
+def convert_to_features_mosi(examples, max_seq_length, tokenizer):
+    features = []
 
-    features = convert_humor_to_features(data, tokenizer)
+    for (ex_index, example) in enumerate(examples):
+
+        (words, visual, acoustic), label_id, segment = example
+
+        tokens, inversions = [], []
+        for idx, word in enumerate(words):
+            tokenized = tokenizer.tokenize(word)
+            tokens.extend(tokenized)
+            inversions.extend([idx] * len(tokenized))
+
+        # Check inversion
+        assert len(tokens) == len(inversions)
+
+        aligned_visual = []
+        aligned_audio = []
+
+        for inv_idx in inversions:
+            aligned_visual.append(visual[inv_idx, :])
+            aligned_audio.append(acoustic[inv_idx, :])
+
+        visual = np.array(aligned_visual)
+        acoustic = np.array(aligned_audio)
+
+        # Truncate input if necessary
+        if len(tokens) > max_seq_length - 2:
+            tokens = tokens[: max_seq_length - 2]
+            acoustic = acoustic[: max_seq_length - 2]
+            visual = visual[: max_seq_length - 2]
+
+        # if args.model == "bert-base-uncased":
+        prepare_input = prepare_bert_input
+        # elif args.model == "xlnet-base-cased":
+        #     prepare_input = prepare_xlnet_input
+        hcf = np.zeros((args.max_seq_length, HCF_DIM_ALL))
+
+        input_ids, visual, acoustic, input_mask, segment_ids = prepare_input(
+            tokens, visual, acoustic, tokenizer
+        )
+
+        # Check input length
+        assert len(input_ids) == args.max_seq_length
+        assert len(input_mask) == args.max_seq_length
+        assert len(segment_ids) == args.max_seq_length
+        assert acoustic.shape[0] == args.max_seq_length
+        assert visual.shape[0] == args.max_seq_length
+
+        features.append(
+            InputFeatures(
+                input_ids=input_ids,
+                input_mask=input_mask,
+                segment_ids=segment_ids,
+                visual=visual,
+                acoustic=acoustic,
+                hcf = hcf,
+                label_id=label_id,
+            )
+        )
+    return features
+
+
+def prepare_bert_input(tokens, visual, acoustic, tokenizer):
+    CLS = tokenizer.cls_token
+    SEP = tokenizer.sep_token
+    tokens = [CLS] + tokens + [SEP]
+
+    # Pad zero vectors for acoustic / visual vectors to account for [CLS] / [SEP] tokens
+    acoustic_zero = np.zeros((1, ACOUSTIC_DIM))
+    acoustic = np.concatenate((acoustic_zero, acoustic, acoustic_zero))
+    visual_zero = np.zeros((1, VISUAL_DIM))
+    visual = np.concatenate((visual_zero, visual, visual_zero))
+
+    input_ids = tokenizer.convert_tokens_to_ids(tokens)
+    segment_ids = [0] * len(input_ids)
+    input_mask = [1] * len(input_ids)
+
+    pad_length = args.max_seq_length - len(input_ids)
+
+    acoustic_padding = np.zeros((pad_length, ACOUSTIC_DIM))
+    acoustic = np.concatenate((acoustic, acoustic_padding))
+
+    visual_padding = np.zeros((pad_length, VISUAL_DIM))
+    visual = np.concatenate((visual, visual_padding))
+
+    padding = [0] * pad_length
+
+    # Pad inputs
+    input_ids += padding
+    input_mask += padding
+    segment_ids += padding
+
+    return input_ids, visual, acoustic, input_mask, segment_ids
+
+def get_tokenizer(model):
+    # if model == "bert-base-uncased":
+    return BertTokenizer.from_pretrained("bert-base-uncased")
+    # elif model == "xlnet-base-cased":
+    #     return XLNetTokenizer.from_pretrained(model)
+    # else:
+    #     raise ValueError(
+    #         "Expected 'bert-base-uncased' or 'xlnet-base-cased, but received {}".format(
+    #             model
+    #         )
+    #     )
+
+
+def get_appropriate_dataset(data, tokenizer, parition, mosi=False):
+    
+    if mosi:
+        features = convert_to_features_mosi(data,tokenizer=tokenizer,max_seq_length=args.max_seq_length)
+    else:
+        features = convert_humor_to_features(data, tokenizer)
+
     all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
     all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
     all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
@@ -307,7 +421,9 @@ def set_up_data_loader():
         data_file = "ur_funny.pkl"
     elif args.dataset=="sarcasm":
         data_file = "mustard.pkl"
-        
+    elif args.dataset=="mosi":
+        mosi=True
+        data_file = 'mosi.pkl'
     with open(
         os.path.join(DATASET_LOCATION, data_file),
         "rb",
@@ -318,7 +434,11 @@ def set_up_data_loader():
     dev_data = all_data["dev"]
     test_data = all_data["test"]
 
-    tokenizer = AlbertTokenizer.from_pretrained("albert-base-v2")
+    if mosi:
+        tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
+    else:
+        tokenizer = AlbertTokenizer.from_pretrained("albert-base-v2")
+
 
     train_dataset = get_appropriate_dataset(train_data, tokenizer, "train")
     dev_dataset = get_appropriate_dataset(dev_data, tokenizer, "dev")
@@ -339,7 +459,7 @@ def set_up_data_loader():
     
     return train_dataloader, dev_dataloader, test_dataloader
 
-def train_epoch(model, train_dataloader, optimizer, scheduler, loss_fct):
+def train_epoch(model, train_dataloader, optimizer, scheduler, loss_fct,regression=False):
     model.train()
     tr_loss = 0
     nb_tr_examples, nb_tr_steps = 0, 0
@@ -362,12 +482,20 @@ def train_epoch(model, train_dataloader, optimizer, scheduler, loss_fct):
         acoustic = torch.squeeze(acoustic, 1)
 
         if args.model == "language_only":
-            outputs = model(
-                input_ids,
-                token_type_ids=segment_ids,
-                attention_mask=input_mask,
-                labels=None,
-            )
+            if args.dataset=="mosi":
+                text = torch.tensor(np.concatenate((input_ids.cpu().numpy()[np.newaxis, :], 
+                   input_mask.cpu().numpy()[np.newaxis, :], 
+                   segment_ids.cpu().numpy()[np.newaxis, :]), axis=0)).to(DEVICE)
+
+
+                outputs = model(text.permute(1, 0, 2))
+            else:
+                outputs = model(
+                    input_ids,
+                    token_type_ids=segment_ids,
+                    attention_mask=input_mask,
+                    labels=None,
+                )
         elif args.model == "acoustic_only":
             outputs = model(
                 acoustic
@@ -428,12 +556,20 @@ def eval_epoch(model, dev_dataloader, loss_fct):
             acoustic = torch.squeeze(acoustic, 1)
     
             if args.model == "language_only":
-                outputs = model(
-                    input_ids,
-                    token_type_ids=segment_ids,
-                    attention_mask=input_mask,
-                    labels=None,
-                )
+                if args.dataset=="mosi":
+                    text = torch.tensor(np.concatenate((input_ids.cpu().numpy()[np.newaxis, :], 
+                   input_mask.cpu().numpy()[np.newaxis, :], 
+                   segment_ids.cpu().numpy()[np.newaxis, :]), axis=0)).to(DEVICE)
+
+
+                    outputs = model(text.permute(1, 0, 2))
+                else:
+                    outputs = model(
+                        input_ids,
+                        token_type_ids=segment_ids,
+                        attention_mask=input_mask,
+                        labels=None,
+                    )
             elif args.model == "acoustic_only":
                 outputs = model(
                     acoustic
@@ -458,7 +594,7 @@ def eval_epoch(model, dev_dataloader, loss_fct):
 
     return dev_loss/nb_dev_steps
 
-def test_epoch(model, test_data_loader, loss_fct,save_features=True):
+def test_epoch(model, test_data_loader, loss_fct, regression = False, save_features=True):
     """ Epoch operation in evaluation phase """
     model.eval()
 
@@ -489,12 +625,20 @@ def test_epoch(model, test_data_loader, loss_fct,save_features=True):
             acoustic = torch.squeeze(acoustic, 1)
             
             if args.model == "language_only":
-                outputs = model(
-                    input_ids,
-                    token_type_ids=segment_ids,
-                    attention_mask=input_mask,
-                    labels=None,
-                )
+                if args.dataset=="mosi":
+                    text = torch.tensor(np.concatenate((input_ids.cpu().numpy()[np.newaxis, :], 
+                   input_mask.cpu().numpy()[np.newaxis, :], 
+                   segment_ids.cpu().numpy()[np.newaxis, :]), axis=0)).to(DEVICE)
+
+
+                    outputs = model(text.permute(1, 0, 2))
+                else:
+                    outputs = model(
+                        input_ids,
+                        token_type_ids=segment_ids,
+                        attention_mask=input_mask,
+                        labels=None,
+                    )
                 logits = outputs[0]
             elif args.model == "acoustic_only":
                 outputs = model(
@@ -533,7 +677,9 @@ def test_epoch(model, test_data_loader, loss_fct,save_features=True):
             eval_loss += tmp_eval_loss.mean().item()
             nb_eval_steps += 1
             
-            logits = torch.sigmoid(logits)
+            if not regression:
+                print("NOT REG")
+                logits = torch.sigmoid(logits)
             
             if len(preds) == 0:
                 preds=logits.detach().cpu().numpy()
@@ -589,6 +735,60 @@ def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False, save
 
 
 
+def test_score_model_reg(model, test_data_loader, loss_fct, exclude_zero=False, save_features = True, regression=False, use_zero=False):
+
+    if save_features:
+        predictions, y_test, test_loss, all_features = test_epoch(model, test_data_loader, loss_fct,regression, save_features=True )
+
+        # Save features to disk or do further processing
+        featureList = [x for x in zip(y_test,all_features)]
+
+        non_zeros = np.array(
+            [i for i, e in enumerate(y_test) if e != 0 or use_zero])
+
+        # print("Before filtering - predictions:", len(predictions))
+        # print("Before filtering - y_test:", len(y_test))
+        predictions = predictions[non_zeros]
+        y_test = y_test[non_zeros]
+        # print("filtering - predictions:", len(predictions))
+        # print(" filtering - y_test:", len(y_test))
+        mae = np.mean(np.absolute(predictions - y_test))
+        corr = np.corrcoef(predictions, y_test)[0][1]
+
+        predictions = predictions >= 0
+        y_test = y_test >= 0
+
+        f_score = f1_score(y_test, predictions, average="weighted")
+        acc = accuracy_score(y_test, predictions)
+
+
+
+        print("Mean Absolute Error:", mae, " Acc: ", acc, " cor: ",corr," f_score: ",f_score)
+        return acc, mae, corr, f_score, test_loss, featureList
+
+    else:
+        predictions, y_test, test_loss = test_epoch(model, test_data_loader, loss_fct, regression,save_features=False)
+    
+
+
+        non_zeros = np.array(
+            [i for i, e in enumerate(y_test) if e != 0 or use_zero])
+
+        predictions = predictions[non_zeros]
+        y_test = y_test[non_zeros]
+
+        mae = np.mean(np.absolute(predictions - y_test))
+        corr = np.corrcoef(predictions, y_test)[0][1]
+
+        predictions = predictions >= 0
+        y_test = y_test >= 0
+
+        f_score = f1_score(y_test, predictions, average="weighted")
+        acc = accuracy_score(y_test, predictions)
+
+        print("Mean Absolute Error:", mae, " Acc: ", acc, " cor: ",corr," f_score: ",f_score)
+        return acc, mae, corr, f_score, test_loss
+
 
 
 def train(
@@ -599,10 +799,14 @@ def train(
     optimizer,
     scheduler,
     loss_fct,
+        regression=False,
 ):
        
-    best_valid_loss = 9e+9
     best_valid_test_accuracy = 0
+    best_valid_test_fscore = 0
+    best_valid_loss = 9e+9
+    best_test_mae = 9e+9
+    best_test_acc = 0
     run_name = str(wandb.run.id)
     valid_losses = []
     
@@ -625,32 +829,63 @@ def train(
             )
         )
 
-        test_accuracy, test_f_score, test_loss, predDict, classification_report, confusion_matrix,featureDict = test_score_model(
-            model, test_dataloader, loss_fct
-        )
-        
-            
-        if(test_accuracy > best_valid_test_accuracy):
-            best_valid_loss = valid_loss
-            best_valid_test_accuracy = test_accuracy
-            best_valid_test_fscore= test_f_score
-            epochs_without_improvement = 0
-            
-            if(args.save_weight == "True"):
-                torch.save(model.state_dict(),'./best_weights/'+run_name+'.pt')
-            
-            if(args.save_preds == "True"):
-                with open('performanceDictX.json', 'w') as fp:
-                    import json
-                    json.dump(predDict, fp)
-            with open(f"test_features_intermediate_{str(wandb.run.id)}.pkl", 'wb') as f:
-                pickle.dump(featureDict, f)
-            # np.save(f"test_features_intermediate_{str(wandb.run.id)}.npy", all_features)
-            # print(f"Size of features {all_features.shape}")
+        if regression==True:
+            acc, mae, corr, f_score, test_loss, featureList = test_score_model_reg(
+                model, test_dataloader, loss_fct, regression=regression
+            )
+            if(best_test_acc <= acc):
+                best_test_acc= acc
+            if(best_test_mae >= mae):
+                best_valid_loss = valid_loss
+                best_test_mae = mae
 
+                
+                
+                if(args.save_weight == "True"):
+                    torch.save(model.state_dict(),'./best_weights/'+run_name+'.pt')
+
+                with open(f"test_features_{wandb.run.id}.pkl", 'wb') as f:
+                    pickle.dump(featureList, f)        
+
+                #we report test_accuracy of the best valid loss (best_valid_test_accuracy)
+                wandb.log(
+                    {
+                        "train_loss": train_loss,
+                        "valid_loss": valid_loss,
+                        "test_loss": test_loss,
+                        "best_valid_loss": best_valid_loss,
+                        "best_test_mae": best_test_mae,
+                        "best_test_acc": best_test_acc
+                    }
+                )
+
+        else:
+            test_accuracy, test_f_score, test_loss, predDict, classification_report, confusion_matrix,featureDict = test_score_model(
+                model, test_dataloader, loss_fct
+            )
             
-            print(classification_report)
-            print(confusion_matrix)
+                
+            if(test_accuracy > best_valid_test_accuracy):
+                best_valid_loss = valid_loss
+                best_valid_test_accuracy = test_accuracy
+                best_valid_test_fscore= test_f_score
+                epochs_without_improvement = 0
+                
+                if(args.save_weight == "True"):
+                    torch.save(model.state_dict(),'./best_weights/'+run_name+'.pt')
+                
+                if(args.save_preds == "True"):
+                    with open('performanceDictX.json', 'w') as fp:
+                        import json
+                        json.dump(predDict, fp)
+                with open(f"test_features_intermediate_{str(wandb.run.id)}.pkl", 'wb') as f:
+                    pickle.dump(featureDict, f)
+                # np.save(f"test_features_intermediate_{str(wandb.run.id)}.npy", all_features)
+                # print(f"Size of features {all_features.shape}")
+
+                
+                print(classification_report)
+                print(confusion_matrix)
         # else:
             # epochs_without_improvement +=1
             
@@ -703,9 +938,12 @@ def prep_for_training(num_training_steps):
     
     
     if args.model == "language_only":
-        model = AlbertForSequenceClassification.from_pretrained(
-            "albert-base-v2", num_labels=1
-        )
+        if args.dataset == "mosi":
+            model = BertTextEncoderRegressionHead(language='en', use_finetune=True)
+        else:
+            model = AlbertForSequenceClassification.from_pretrained(
+                "albert-base-v2", num_labels=1
+            )
     elif args.model == "acoustic_only":
         if args.dataset=="humor":
             model = Transformer1(ACOUSTIC_DIM, num_layers=8, nhead=3, dim_feedforward = 256)
@@ -751,8 +989,19 @@ def prep_for_training(num_training_steps):
             acoustic_model.load_state_dict(torch.load("./model_weights/init/sarcasm/sarcasmAcousticTransformer.pt"))
             hcf_model = Transformer(HCF_DIM, num_layers=8, nhead=4, dim_feedforward=128)
             hcf_model.load_state_dict(torch.load("./model_weights/init/sarcasm/sarcasmHCFTransformer.pt"))
+
+        elif args.dataset=="mosi":
+            visual_model = Transformer(VISUAL_DIM, num_layers=8, nhead=4, dim_feedforward=1024)
+            visual_model.load_state_dict(torch.load("./model_weights/init/mosi/mosiVisualTransformer.pt"))
+            acoustic_model = Transformer(ACOUSTIC_DIM, num_layers=1, nhead=3, dim_feedforward=512)
+            acoustic_model.load_state_dict(torch.load("./model_weights/init/mosi/mosiAcousticTransformer.pt"))
+            hcf_model = Transformer(HCF_DIM, num_layers=8, nhead=4, dim_feedforward=128) #not used 
+            hcf_model.load_state_dict(torch.load("./model_weights/init/mosi/mosiHCFTransformer.pt")) #not used
         
-        text_model = AlbertModel.from_pretrained('albert-base-v2')
+        if args.dataset == "mosi":
+            text_model = BertTextEncoderRegressionHead(language='en', use_finetune=True)
+        else:
+            text_model = AlbertModel.from_pretrained('albert-base-v2')
         if args.include_v=="n":
             model = HKT_no_v(text_model, visual_model, acoustic_model,hcf_model, args)
 
@@ -772,7 +1021,8 @@ def prep_for_training(num_training_steps):
 
         elif args.include_c3=="n":
             model = HKT_no_c3(text_model, visual_model, acoustic_model,hcf_model, args)
-
+        elif args.dataset=="mosi":
+            model = HKT_regression(text_model, visual_model, acoustic_model,hcf_model, args)
         else:
 
             model = HKT(text_model, visual_model, acoustic_model,hcf_model, args)
@@ -782,13 +1032,26 @@ def prep_for_training(num_training_steps):
 
     model.to(DEVICE)
     
-    loss_fct = BCEWithLogitsLoss()
+    if args.dataset=="mosi":
+        loss_fct = torch.nn.MSELoss()
+    else:
+        loss_fct = BCEWithLogitsLoss()
     
 
     # Prepare optimizer
     # used different learning rates for different componenets.
     
     if args.model == "HKT" :
+        if args.dataset == "mosi":
+            acoustic_params,visual_params,text_params,other_params = model.get_params()
+            optimizer_o,scheduler_o=get_optimizer_scheduler(other_params,num_training_steps,learning_rate=args.learning_rate)
+            # optimizer_h,scheduler_h=get_optimizer_scheduler(hcf_params,num_training_steps,learning_rate=args.learning_rate_h)
+            optimizer_v,scheduler_v=get_optimizer_scheduler(visual_params,num_training_steps,learning_rate=args.learning_rate_v)
+            optimizer_t,scheduler_t=get_optimizer_scheduler(text_params,num_training_steps,learning_rate=args.learning_rate_t)
+            optimizer_a,scheduler_a=get_optimizer_scheduler(acoustic_params,num_training_steps,learning_rate=args.learning_rate_a)
+            
+            optimizers=[optimizer_o,optimizer_v,optimizer_a,optimizer_t]
+            schedulers=[scheduler_o,scheduler_v,scheduler_a,scheduler_t]
 
         if args.include_v == "n":
             acoustic_params,text_params,hcf_params,other_params = model.get_params()
@@ -881,7 +1144,7 @@ def set_random_seed(seed):
 
 def main():
     
-    wandb.init(project="Fusion_Final", group="pairwise_x_ablation")
+    wandb.init(project="Fusion_Final_Extra", group="pairwise_x_ablation")
     wandb.config.update(args)
     
     if(args.seed == -1):
@@ -902,6 +1165,11 @@ def main():
         num_training_steps
     )
     print("Model Loaded: ",args.model)
+    if args.dataset == "mosi":
+        print("Regression")
+        regression=True
+    else:
+        regression=False
     train(
         model,
         train_dataloader,
@@ -910,6 +1178,7 @@ def main():
         optimizers,
         schedulers,
         loss_fct,
+        regression=regression
     )
     
 
