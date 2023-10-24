@@ -120,7 +120,7 @@ class BertTextEncoderRegressionHead(nn.Module):
                                                 attention_mask=attention_mask,
                                             token_type_ids=token_type_ids)[0]  # Models outputs are now tuples
         cls_embedding = last_hidden_states[:, 0, :]  # Taking the [CLS] embedding
-        regression_output = self.regression_head(cls_embedding).squeeze(-1)  # (batch_size,)
+        regression_output = self.regression_head(cls_embedding)  # (batch_size,)
         return (regression_output,cls_embedding,last_hidden_states)
     
 if __name__ == "__main__":
