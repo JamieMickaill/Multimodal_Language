@@ -394,7 +394,7 @@ class HKT_regression(nn.Module):
 
     def forward(self, input_ids, visual, acoustic, hcf, attention_mask=None, token_type_ids=None):
 
-        
+        hcf = hcf
         # Pass through the model to get BERT embeddings
         # with torch.no_grad():  # To disable gradient calculations during inference
         text = torch.tensor(np.concatenate((input_ids.cpu().numpy()[np.newaxis, :], 
