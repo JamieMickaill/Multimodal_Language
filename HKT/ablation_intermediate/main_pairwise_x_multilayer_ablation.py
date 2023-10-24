@@ -509,7 +509,7 @@ def train_epoch(model, train_dataloader, optimizer, scheduler, loss_fct,regressi
             outputs=model(hcf)[0]
             
         elif args.model=="HKT":
-            outputs = model(input_ids, visual, acoustic,hcf, token_type_ids=segment_ids, attention_mask=input_mask,)
+            outputs = model(input_ids, visual, acoustic,hcf, attention_mask=input_mask,token_type_ids=segment_ids)
         
         
             
