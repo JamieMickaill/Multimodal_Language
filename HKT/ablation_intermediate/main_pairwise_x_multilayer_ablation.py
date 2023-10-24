@@ -278,8 +278,7 @@ def convert_humor_to_features(examples, tokenizer, punchline_only=False):
     return features
 
 
-
-def convert_to_features_mosi(examples, max_seq_length, tokenizer):
+def convert_to_features_mosi(examples, max_seq_length, tokenizer, acoustic_features_list, visual_features_list):
     features = []
 
     for (ex_index, example) in enumerate(examples):
@@ -321,6 +320,10 @@ def convert_to_features_mosi(examples, max_seq_length, tokenizer):
             tokens, visual, acoustic, tokenizer
         )
 
+        # Reduce dimensionality of the acoustic and visual features
+        acoustic = np.take(acoustic, acoustic_features_list, axis=1)
+        visual = np.take(visual, visual_features_list, axis=1)
+
         # Check input length
         assert len(input_ids) == args.max_seq_length
         assert len(input_mask) == args.max_seq_length
@@ -341,6 +344,7 @@ def convert_to_features_mosi(examples, max_seq_length, tokenizer):
             )
         )
     return features
+
 
 
 def prepare_bert_input(tokens, visual, acoustic, tokenizer):

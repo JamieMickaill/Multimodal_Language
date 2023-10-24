@@ -6,8 +6,8 @@ os.environ["WANDB_PROGRAM"] = "multimodal_driver.py"
 
 DEVICE = torch.device("cuda:0")
 
-visual_features_list=list(range(55,91))
-acoustic_features_list=list(range(0,60))
+visual_features_list=list(range(0,72))
+acoustic_features_list=list(range(0,44))
 hcf_features_list = list(range(0,4))
 
 ACOUSTIC_DIM = 74
