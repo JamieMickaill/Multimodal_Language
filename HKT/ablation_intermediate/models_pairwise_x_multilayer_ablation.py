@@ -410,10 +410,8 @@ class HKT_regression(nn.Module):
     def forward(self, input_ids, visual, acoustic, hcf, attention_mask=None, token_type_ids=None):
 
         hcf = hcf
-        text = torch.tensor(np.concatenate((input_ids.cpu().numpy()[np.newaxis, :], 
-            attention_mask.cpu().numpy()[np.newaxis, :], 
-            token_type_ids.cpu().numpy()[np.newaxis, :]), axis=0)).to(DEVICE)
-        text_output = self.text_model(text)[0]
+        text_output = self.text_model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)[0]
+
         
         (_, _, visual_output) = self.visual_model(visual)
         (_, _, acoustic_output) = self.acoustic_model(acoustic)

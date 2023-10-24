@@ -397,10 +397,8 @@ class HKT_regression(nn.Module):
         hcf = hcf
         # Pass through the model to get BERT embeddings
         # with torch.no_grad():  # To disable gradient calculations during inference
-        text = torch.tensor(np.concatenate((input_ids.cpu().numpy()[np.newaxis, :], 
-                   attention_mask.cpu().numpy()[np.newaxis, :], 
-                   token_type_ids.cpu().numpy()[np.newaxis, :]), axis=0)).to(DEVICE)
-        t_tokens = self.text_model(text)[0]
+        t_tokens = self.text_model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)[0]
+            
             
         #concat vertically
         all_features_comb = torch.cat((t_tokens, visual, acoustic), dim=2)
