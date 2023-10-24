@@ -10,8 +10,8 @@ visual_features_list=list(range(0,72))
 acoustic_features_list=list(range(0,44))
 hcf_features_list = list(range(0,4))
 
-ACOUSTIC_DIM = len(visual_features_list)
-VISUAL_DIM = len(acoustic_features_list)
+ACOUSTIC_DIM = len(acoustic_features_list) 
+VISUAL_DIM = len(visual_features_list)
 HCF_DIM=len(hcf_features_list)
 LANGUAGE_DIM=768
 
