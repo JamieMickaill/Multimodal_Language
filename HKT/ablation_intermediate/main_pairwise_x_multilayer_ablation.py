@@ -270,6 +270,8 @@ def convert_humor_to_features(examples, tokenizer, punchline_only=False):
                 hcf=hcf,
                 label_id=label_id,
                 data_id=int(hid)
+
+                
             )
         )
             
@@ -509,8 +511,8 @@ def train_epoch(model, train_dataloader, optimizer, scheduler, loss_fct,regressi
             outputs=model(hcf)[0]
             
         elif args.model=="HKT":
-            print(input_ids, visual, acoustic,hcf, input_mask,segment_ids)
-            outputs = model(input_ids, visual, acoustic,hcf, attention_mask=input_mask,token_type_ids=segment_ids)
+            # print(input_ids, visual, acoustic,hcf, input_mask,segment_ids)
+            outputs = model(input_ids, visual, acoustic,hcf, input_mask,segment_ids)
         
         
             
