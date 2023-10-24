@@ -278,7 +278,7 @@ def convert_humor_to_features(examples, tokenizer, punchline_only=False):
     return features
 
 
-def convert_to_features_mosi(examples, max_seq_length, tokenizer, acoustic_features_list, visual_features_list):
+def convert_to_features_mosi(examples, max_seq_length, tokenizer):
     features = []
 
     for (ex_index, example) in enumerate(examples):

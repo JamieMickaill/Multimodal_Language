@@ -295,7 +295,7 @@ import numpy as np
 import pickle
 
 
-def convert_to_features_mosi(examples, max_seq_length, tokenizer, acoustic_features_list, visual_features_list):
+def convert_to_features_mosi(examples, max_seq_length, tokenizer):
     features = []
 
     for (ex_index, example) in enumerate(examples):
