@@ -321,7 +321,7 @@ class HKT_regression(nn.Module):
     
     def forward(self, input_ids, visual, acoustic,hcf, attention_mask=None, token_type_ids=None):
         hcf = hcf
-        text_output = self.text_model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)[0]
+        text_output = self.text_model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)[2]
 
         (v_cls, _, visual_output) = self.visual_model(visual)
         (a_cls, _, acoustic_output) = self.acoustic_model(acoustic)
