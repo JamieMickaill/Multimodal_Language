@@ -9,7 +9,7 @@ import os
 import random
 import pickle
 import sys
-from global_config import *
+
 import numpy as np
 import wandb 
 
@@ -42,7 +42,7 @@ from transformers.optimization import AdamW
 import sys
 sys.path.append("..")
 from models.subNets.BertTextEncoder import BertTextEncoderRegressionHead
-
+from global_config import *
 
 
 def return_unk():
@@ -273,7 +273,6 @@ def convert_humor_to_features(examples, tokenizer, punchline_only=False):
 
 
 
-
 def convert_to_features_mosi(examples, max_seq_length, tokenizer):
     features = []
 
@@ -389,6 +388,8 @@ def get_appropriate_dataset(data, tokenizer, parition, mosi=False):
     else:
         features = convert_humor_to_features(data, tokenizer)
 
+
+    features = convert_humor_to_features(data, tokenizer)
     all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
     all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
     all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
@@ -411,6 +412,7 @@ def get_appropriate_dataset(data, tokenizer, parition, mosi=False):
     
     return dataset
 
+
 def set_up_data_loader():
     if args.dataset=="humor":
         data_file = "ur_funny.pkl"
@@ -419,22 +421,22 @@ def set_up_data_loader():
     elif args.dataset=="mosi":
         mosi=True
         data_file = 'mosi.pkl'
+
     with open(
         os.path.join(DATASET_LOCATION, data_file),
         "rb",
     ) as handle:
         all_data = pickle.load(handle)
-
         
     train_data = all_data["train"]
     dev_data = all_data["dev"]
     test_data = all_data["test"]
 
-
     if mosi:
         tokenizer = BertTokenizer.from_pretrained("bert-base-uncased")
     else:
         tokenizer = AlbertTokenizer.from_pretrained("albert-base-v2")
+
 
     train_dataset = get_appropriate_dataset(train_data, tokenizer, "train")
     dev_dataset = get_appropriate_dataset(dev_data, tokenizer, "dev")
@@ -455,7 +457,7 @@ def set_up_data_loader():
     
     return train_dataloader, dev_dataloader, test_dataloader
 
-def train_epoch(model, train_dataloader, optimizer, scheduler, loss_fct,regression=False):
+def train_epoch(model, train_dataloader, optimizer, scheduler, loss_fct):
     model.train()
     tr_loss = 0
     nb_tr_examples, nb_tr_steps = 0, 0
@@ -575,7 +577,7 @@ def eval_epoch(model, dev_dataloader, loss_fct):
 
     return dev_loss/nb_dev_steps
 
-def test_epoch(model, test_data_loader, loss_fct, regression = False, save_features=True):
+def test_epoch(model, test_data_loader, loss_fct, regression = False, save_features = True):
     """ Epoch operation in evaluation phase """
     model.eval()
 
@@ -630,11 +632,8 @@ def test_epoch(model, test_data_loader, loss_fct, regression = False, save_featu
             logits = outputs[0]
 
 
-
-            if save_features and args.model != "language_only":
+            if save_features:
                 all_features.append(outputs[1].detach().cpu().numpy())
-            else:
-                all_features.append(outputs[0].detach().cpu().numpy())
             
             
             tmp_eval_loss = loss_fct(logits.view(-1), label_ids.view(-1))
@@ -703,7 +702,6 @@ def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False,save_
     return accuracy, f_score, test_loss,performanceDict,cr,conf_matrix, featureDict
 
 
-
 def test_score_model_reg(model, test_data_loader, loss_fct, exclude_zero=False, save_features = True, regression=False, use_zero=False):
 
     if save_features:
@@ -760,6 +758,7 @@ def test_score_model_reg(model, test_data_loader, loss_fct, exclude_zero=False, 
 
 
 
+
 def train(
     model,
     train_dataloader,
@@ -768,7 +767,6 @@ def train(
     optimizer,
     scheduler,
     loss_fct,
-        regression=False,
 ):
        
     best_valid_test_accuracy = 0
@@ -797,6 +795,7 @@ def train(
                 epoch_i, train_loss, valid_loss
             )
         )
+
 
         if regression==True:
             acc, mae, corr, f_score, test_loss, featureList = test_score_model_reg(
@@ -832,8 +831,8 @@ def train(
             test_accuracy, test_f_score, test_loss, predDict,classification_report,confusion_matrix,featuredict = test_score_model(
                 model, test_dataloader, loss_fct
             )
-        
             
+                
                 
             if(test_accuracy > best_valid_test_accuracy):
                 best_valid_loss = valid_loss
@@ -854,23 +853,23 @@ def train(
                 
                 print(classification_report)
                 print(confusion_matrix)
-        # If epochs without improvement exceeds patience, stop training
-        if epochs_without_improvement >= patience:
-            print("Early stopping triggered")
-            break
-        
-        #we report test_accuracy of the best valid loss (best_valid_test_accuracy)
-        wandb.log(
-            {
-                "train_loss": train_loss,
-                "valid_loss": valid_loss,
-                "test_loss": test_loss,
-                "best_valid_loss": best_valid_loss,
-                "best_valid_test_accuracy": best_valid_test_accuracy,
-                "best_valid_test_fscore":best_valid_test_fscore
-            }
-        )
-        
+            # If epochs without improvement exceeds patience, stop training
+            if epochs_without_improvement >= patience:
+                print("Early stopping triggered")
+                break
+            
+            #we report test_accuracy of the best valid loss (best_valid_test_accuracy)
+            wandb.log(
+                {
+                    "train_loss": train_loss,
+                    "valid_loss": valid_loss,
+                    "test_loss": test_loss,
+                    "best_valid_loss": best_valid_loss,
+                    "best_valid_test_accuracy": best_valid_test_accuracy,
+                    "best_valid_test_fscore":best_valid_test_fscore
+                }
+            )
+            
 
 
 
@@ -905,12 +904,9 @@ def prep_for_training(num_training_steps):
     
     
     if args.model == "language_only":
-        if args.dataset == "mosi":
-            model = BertTextEncoderRegressionHead(language='en', use_finetune=True)
-        else:
-            model = AlbertForSequenceClassification.from_pretrained(
-                "albert-base-v2", num_labels=1
-            )
+        model = AlbertForSequenceClassification.from_pretrained(
+            "albert-base-v2", num_labels=1
+        )
     elif args.model == "acoustic_only":
         model = Transformer(ACOUSTIC_DIM, num_layers=args.n_layers, nhead=args.n_heads, dim_feedforward=args.fc_dim)
         
@@ -941,7 +937,8 @@ def prep_for_training(num_training_steps):
             acoustic_model.load_state_dict(torch.load("./model_weights/init/sarcasm/sarcasmAcousticTransformer.pt"), strict=False)
             hcf_model = Transformer(HCF_DIM, num_layers=8, nhead=4, dim_feedforward=128)
             hcf_model.load_state_dict(torch.load("./model_weights/init/sarcasm/sarcasmHCFTransformer.pt"), strict=False)
-        
+
+
         elif args.dataset=="mosi":
             visual_model = Transformer(VISUAL_DIM, num_layers=8, nhead=4, dim_feedforward=1024)
             visual_model.load_state_dict(torch.load("./model_weights/init/mosi/mosiVisualTransformer.pt"))
@@ -954,7 +951,6 @@ def prep_for_training(num_training_steps):
             text_model = BertTextEncoderRegressionHead(language='en', use_finetune=True)
         else:
             text_model = AlbertModel.from_pretrained('albert-base-v2')
-
         if args.include_v=="n":
             model = HKT_no_V(text_model, visual_model, acoustic_model,hcf_model, args)
 
@@ -967,7 +963,7 @@ def prep_for_training(num_training_steps):
         elif args.include_h=="n":
             model = HKT_no_H(text_model, visual_model, acoustic_model,hcf_model, args)
         elif args.dataset=="mosi":
-            model = HKT_regression(text_model, visual_model, acoustic_model, args)
+            model = HKT_regression(text_model, visual_model, acoustic_model,hcf_model, args)
         else:
 
             model = HKT(text_model, visual_model, acoustic_model,hcf_model, args)
@@ -983,6 +979,7 @@ def prep_for_training(num_training_steps):
         loss_fct = BCEWithLogitsLoss()
     
 
+    
 
     # Prepare optimizer
     # used different learning rates for different componenets.
@@ -995,8 +992,6 @@ def prep_for_training(num_training_steps):
 
             optimizers=[optimizer_o,]
             schedulers=[scheduler_o,]
-            
-
         
         else:
 
@@ -1043,7 +1038,7 @@ def set_random_seed(seed):
 
 def main():
     
-    wandb.init(project="Fusion_Final", group="early_v_cls_ft_bert_ablation")
+    wandb.init(project="Fusion_Final_Extra", group="early_v_cls_ft_bert_ablation")
     wandb.config.update(args)
     
     if(args.seed == -1):

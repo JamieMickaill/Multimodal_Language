@@ -80,7 +80,7 @@ class BertTextEncoderRegressionHead(nn.Module):
         # directory is fine
         # pretrained_weights = '/home/sharing/disk3/pretrained_embedding/Chinese/bert/pytorch'
         if language == 'en':
-            self.tokenizer = tokenizer_class.from_pretrained('pretrained_model/bert_en', do_lower_case=True)
+            self.tokenizer = tokenizer_class.from_pretrained('bert-base-uncased')
             self.model = model_class.from_pretrained('bert-base-uncased')
         # elif language == 'cn':
         #     self.tokenizer = tokenizer_class.from_pretrained('pretrained_model/bert_cn')
@@ -124,4 +124,4 @@ class BertTextEncoderRegressionHead(nn.Module):
         return (regression_output,cls_embedding,last_hidden_states)
     
 if __name__ == "__main__":
-    bert_normal = BertTextEncoder()
+    bert_normal = BertTextEncoderRegressionHead()

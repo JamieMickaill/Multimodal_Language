@@ -276,6 +276,78 @@ class HKTMultiLayerCrossAttn(nn.Module):
 
 #Late fusion of unimodal predictions
 
+class HKT_regression(nn.Module):
+    def __init__(self, text_model, visual_model, acoustic_model, args, dropout=0.1, fusion_dim=128):
+        super(HKT, self).__init__()
+        
+        self.newly_added_config=args
+        self.text_model = text_model
+        self.visual_model = visual_model
+        self.acoustic_model = acoustic_model
+        
+        # self.text_audio_cross_attention = CrossAttentionLayer(LANGUAGE_DIM+HCF_DIM, ACOUSTIC_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        # self.text_visual_cross_attention = CrossAttentionLayer(LANGUAGE_DIM+HCF_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        # self.audio_visual_cross_attention = CrossAttentionLayer(ACOUSTIC_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        
+        # Transform BERT CLS to 1D
+        # decoder output from t/a/v/h encoders is already 1D
+        self.text_decoder = nn.Linear(LANGUAGE_DIM, 1)
+
+        
+        # Late fusion layer: Combine individual modality predictions
+        self.late_fusion_layer = nn.Linear(3, 1)
+
+        
+        # #total dim is VA, V(TH), A(TH), V,A,T,H
+        # total_dim =  3*(LANGUAGE_DIM+HCF_DIM) + 3*(VISUAL_DIM) + 3*(ACOUSTIC_DIM) 
+
+        # self.fusion_fc = nn.Sequential(nn.Linear(total_dim, args.fusion_dim), 
+        #                                nn.ReLU(), 
+        #                                nn.Dropout(args.dropout), 
+        #                                nn.Linear(args.fusion_dim, 1))
+
+
+    def get_params(self):
+        
+        acoustic_params=list(self.acoustic_model.named_parameters())
+        visual_params=list(self.visual_model.named_parameters())
+        text_params = list(self.text_model.named_parameters()) + list(self.text_decoder.named_parameters())
+        # predict_params = list(self.text_prediction.named_parameters())+list(self.visual_prediction.named_parameters())+list(self.acoustic_prediction.named_parameters())+list(self.hcf_prediction.named_parameters())
+        # predict_params = list(self.text_decoder.named_parameters())
+
+        other_params=list(self.late_fusion_layer.named_parameters())
+        
+        return acoustic_params,visual_params,text_params,other_params
+    
+    def forward(self, input_ids, visual, acoustic,hcf, attention_mask=None, token_type_ids=None):
+        
+        text = torch.tensor(np.concatenate((input_ids.cpu().numpy()[np.newaxis, :], 
+            attention_mask.cpu().numpy()[np.newaxis, :], 
+            token_type_ids.cpu().numpy()[np.newaxis, :]), axis=0)).to(DEVICE)
+        text_output = self.text_model(text)[0]
+        (v_cls, _, visual_output) = self.visual_model(visual)
+        (a_cls, _, acoustic_output) = self.acoustic_model(acoustic)
+        #[CLS] token embedding, full output, last hidden layer)
+        
+
+        text_pred = self.text_decoder(text_output[:,0,:]) #BERT CLS -> 1D Decoder
+        visual_pred =v_cls
+        acoustic_pred = a_cls
+
+        # print(text_pred, visual_pred, acoustic_pred, hcf_pred)
+        concatenated_predictions = torch.cat((text_pred, visual_pred, acoustic_pred), dim=1)
+        
+        # Get final prediction through the late fusion layer
+        final_prediction = self.late_fusion_layer(concatenated_predictions)
+        
+        return (final_prediction,concatenated_predictions)
+        
+        # return (out, fused_hidden)
+
+
+
+#Late fusion of unimodal predictions
+
 class HKT(nn.Module):
     def __init__(self, text_model, visual_model, acoustic_model, hcf_model, args, dropout=0.1, fusion_dim=128):
         super(HKT, self).__init__()

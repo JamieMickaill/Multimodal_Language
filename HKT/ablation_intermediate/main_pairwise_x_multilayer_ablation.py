@@ -9,7 +9,6 @@ import os
 import random
 import pickle
 import sys
-from global_config import *
 import numpy as np
 import wandb 
 
@@ -42,6 +41,7 @@ from transformers.optimization import AdamW
 import sys
 sys.path.append("..")
 from models.subNets.BertTextEncoder import BertTextEncoderRegressionHead
+from global_config import *
 
 
 def return_unk():
