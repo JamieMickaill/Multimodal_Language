@@ -208,8 +208,7 @@ class CrossAttentionEncoder(nn.Module):
         self.layers = _get_clones(layer, num_layers)
 
     def forward(self, src, context, attention_mask=None):
-        print(src,context)
-        print(src.size(),context.size())
+
         src_dim = src.size()[2]
         context_dim = context.size()[2]
 
