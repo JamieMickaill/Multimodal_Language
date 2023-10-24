@@ -746,8 +746,7 @@ def test_score_model(model, test_data_loader, loss_fct, exclude_zero=False, save
 def test_score_model_reg(model, test_data_loader, loss_fct, exclude_zero=False, save_features = True, regression=False, use_zero=False):
 
     if save_features:
-        predictions, y_test, test_loss, all_features = test_epoch(model, test_data_loader, loss_fct,regression, save_features=True )
-
+        predictions, y_test, test_loss, data_ids, all_features = test_epoch(model, test_data_loader, loss_fct,regression, save_features=True )
         # Save features to disk or do further processing
         featureList = [x for x in zip(y_test,all_features)]
 
@@ -768,14 +767,22 @@ def test_score_model_reg(model, test_data_loader, loss_fct, exclude_zero=False, 
 
         f_score = f1_score(y_test, predictions, average="weighted")
         acc = accuracy_score(y_test, predictions)
+        # Classification Report
+        cr = classification_report(y_test, predictions, target_names=['class_0', 'class_1'])
+        
+        # Confusion Matrix
+        conf_matrix = confusion_matrix(y_test, predictions)
+
+        data = zip(data_ids,predictions,y_test)
+        performanceDict = dict([(str(x), (int(y), int(z))) for x, y, z in data])
 
 
 
         print("Mean Absolute Error:", mae, " Acc: ", acc, " cor: ",corr," f_score: ",f_score)
-        return acc, mae, corr, f_score, test_loss, featureList
+        return acc, mae, corr, f_score, test_loss, featureList,cr,conf_matrix,performanceDict
 
     else:
-        predictions, y_test, test_loss = test_epoch(model, test_data_loader, loss_fct, regression,save_features=False)
+        predictions, y_test, test_loss,data_ids = test_epoch(model, test_data_loader, loss_fct, regression,save_features=False)
     
 
 
@@ -793,9 +800,16 @@ def test_score_model_reg(model, test_data_loader, loss_fct, exclude_zero=False, 
 
         f_score = f1_score(y_test, predictions, average="weighted")
         acc = accuracy_score(y_test, predictions)
+        data = zip(data_ids,predictions,y_test)
+        performanceDict = dict([(str(x), (int(y), int(z))) for x, y, z in data])
+        # Classification Report
+        cr = classification_report(y_test, predictions, target_names=['class_0', 'class_1'])
+        
+        # Confusion Matrix
+        conf_matrix = confusion_matrix(y_test, predictions)
 
         print("Mean Absolute Error:", mae, " Acc: ", acc, " cor: ",corr," f_score: ",f_score)
-        return acc, mae, corr, f_score, test_loss
+        return acc, mae, corr, f_score, test_loss,cr,conf_matrix,performanceDict
 
 
 
@@ -839,9 +853,12 @@ def train(
         )
 
         if regression==True:
-            acc, mae, corr, f_score, test_loss, featureList = test_score_model_reg(
+            acc, mae, corr, f_score, test_loss, featureList,cr,conf_matrix,performanceDict = test_score_model_reg(
                 model, test_dataloader, loss_fct, regression=regression
             )
+            print(cr)
+            print(conf_matrix)
+
             if(best_test_acc <= acc):
                 best_test_acc= acc
                 best_valid_test_fscore = f_score
@@ -850,6 +867,11 @@ def train(
                 best_valid_loss = valid_loss
                 best_test_mae = mae
                 best_valid_corr = corr
+
+                if(args.save_preds == "True"):
+                    with open(f'performanceDict{wandb.run.id}.json', 'w') as fp:
+                        import json
+                        json.dump(performanceDict, fp)
                 
 
                 
