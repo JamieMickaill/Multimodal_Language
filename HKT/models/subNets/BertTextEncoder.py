@@ -101,7 +101,7 @@ class BertTextEncoderRegressionHead(nn.Module):
             last_hidden_states = self.model(input_ids)[0]  # Models outputs are now tuples
         return last_hidden_states.squeeze()
     
-    def forward(self, input_ids, input_mask, segment_ids):
+    def forward(self, input_ids, attention_mask, token_type_ids):
         """
         text: (batch_size, 3, seq_len)
         3: input_ids, input_mask, segment_ids
@@ -112,13 +112,13 @@ class BertTextEncoderRegressionHead(nn.Module):
         # input_ids, input_mask, segment_ids = text[:,0,:].long(), text[:,1,:].float(), text[:,2,:].long()
         if self.use_finetune:
             last_hidden_states = self.model(input_ids=input_ids,
-                                            attention_mask=input_mask,
-                                            token_type_ids=segment_ids)[0]  # Models outputs are now tuples
+                                            attention_mask=attention_mask,
+                                            token_type_ids=token_type_ids)[0]  # Models outputs are now tuples
         else:
             with torch.no_grad():
                 last_hidden_states = self.model(input_ids=input_ids,
-                                                attention_mask=input_mask,
-                                            token_type_ids=segment_ids)[0]  # Models outputs are now tuples
+                                                attention_mask=attention_mask,
+                                            token_type_ids=token_type_ids)[0]  # Models outputs are now tuples
         cls_embedding = last_hidden_states[:, 0, :]  # Taking the [CLS] embedding
         regression_output = self.regression_head(cls_embedding).squeeze(-1)  # (batch_size,)
         return (regression_output,cls_embedding,last_hidden_states)
