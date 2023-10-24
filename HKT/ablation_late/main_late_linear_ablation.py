@@ -439,10 +439,10 @@ def set_up_data_loader():
         tokenizer = AlbertTokenizer.from_pretrained("albert-base-v2")
 
 
-    train_dataset = get_appropriate_dataset(train_data, tokenizer, "train")
-    dev_dataset = get_appropriate_dataset(dev_data, tokenizer, "dev")
-    test_dataset = get_appropriate_dataset(test_data, tokenizer, "test")
-
+    train_dataset = get_appropriate_dataset(train_data, tokenizer, "train",mosi)
+    dev_dataset = get_appropriate_dataset(dev_data, tokenizer, "dev",mosi)
+    test_dataset = get_appropriate_dataset(test_data, tokenizer, "test",mosi)
+    
     train_dataloader = DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=1
     )
