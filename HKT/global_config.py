@@ -10,13 +10,13 @@ visual_features_list=list(range(55,91))
 acoustic_features_list=list(range(0,60))
 hcf_features_list = list(range(0,4))
 
-ACOUSTIC_DIM = len(acoustic_features_list)
-VISUAL_DIM = len(visual_features_list)
+ACOUSTIC_DIM = 74
+VISUAL_DIM = 47
 HCF_DIM=len(hcf_features_list)
 LANGUAGE_DIM=768
 
-VISUAL_DIM_ALL = 91
-ACOUSTIC_DIM_ALL = 81
+VISUAL_DIM_ALL = 74
+ACOUSTIC_DIM_ALL =47
 HCF_DIM_ALL=17
 
 H_MERGE_SENT = 768
