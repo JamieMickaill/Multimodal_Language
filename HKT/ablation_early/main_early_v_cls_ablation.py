@@ -940,13 +940,13 @@ def prep_for_training(num_training_steps):
 
 
         elif args.dataset=="mosi":
-            visual_model = Transformer(VISUAL_DIM, num_layers=8, nhead=4, dim_feedforward=1024)
-            visual_model.load_state_dict(torch.load("./model_weights/init/mosi/mosiVisualTransformer.pt"))
-            acoustic_model = Transformer(ACOUSTIC_DIM, num_layers=1, nhead=3, dim_feedforward=512)
-            acoustic_model.load_state_dict(torch.load("./model_weights/init/mosi/mosiAcousticTransformer.pt"))
+            visual_model = Transformer(VISUAL_DIM, num_layers=8, nhead=1, dim_feedforward=400)
+            visual_model.load_state_dict(torch.load("./model_weights/init/mosi/mosiVisualTransformer1H8L400FC.pt"))
+            acoustic_model = Transformer(ACOUSTIC_DIM, num_layers=10, nhead=1, dim_feedforward=200)
+            acoustic_model.load_state_dict(torch.load("./model_weights/init/mosi/mosiAcousticTransformer1H10L200FC.pt"))
             hcf_model = Transformer(HCF_DIM, num_layers=8, nhead=4, dim_feedforward=128) #not used 
             hcf_model.load_state_dict(torch.load("./model_weights/init/mosi/mosiHCFTransformer.pt")) #not used
-        
+            
         if args.dataset == "mosi":
             text_model = BertTextEncoderRegressionHead(language='en', use_finetune=True)
         else:
