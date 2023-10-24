@@ -372,7 +372,7 @@ class HKT(nn.Module):
 
 class HKT_regression(nn.Module):
     def __init__(self, text_model, visual_model, acoustic_model, args, dropout=0.1, fusion_dim=128):
-        super(HKT, self).__init__()
+        super(HKT_regression, self).__init__()
         
         self.newly_added_config=args
         self.text_model = text_model
