@@ -970,7 +970,7 @@ def prep_for_training(num_training_steps):
             acoustic_model = Transformer(ACOUSTIC_DIM, num_layers=10, nhead=1, dim_feedforward=200)
             acoustic_model.load_state_dict(torch.load("./model_weights/init/mosi/mosiAcousticTransformer1H10L200FC.pt"))
             hcf_model = Transformer(HCF_DIM, num_layers=8, nhead=4, dim_feedforward=128) #not used 
-            hcf_model.load_state_dict(torch.load("./model_weights/init/sarcasm/sarcasmHCFTransformer")) #not used
+            hcf_model.load_state_dict(torch.load("./model_weights/init/sarcasm/sarcasmHCFTransformer.pt")) #not used
         
         
         if args.dataset == "mosi":
