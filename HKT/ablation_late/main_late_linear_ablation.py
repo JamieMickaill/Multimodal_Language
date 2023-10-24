@@ -332,6 +332,7 @@ def convert_to_features_mosi(examples, max_seq_length, tokenizer):
                 acoustic=acoustic,
                 hcf = hcf,
                 label_id=label_id,
+                data_id = 0
             )
         )
     return features
@@ -442,7 +443,7 @@ def set_up_data_loader():
     train_dataset = get_appropriate_dataset(train_data, tokenizer, "train",mosi)
     dev_dataset = get_appropriate_dataset(dev_data, tokenizer, "dev",mosi)
     test_dataset = get_appropriate_dataset(test_data, tokenizer, "test",mosi)
-    
+
     train_dataloader = DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=1
     )

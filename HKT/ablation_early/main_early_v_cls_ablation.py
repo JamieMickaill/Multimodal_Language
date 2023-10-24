@@ -331,6 +331,7 @@ def convert_to_features_mosi(examples, max_seq_length, tokenizer):
                 acoustic=acoustic,
                 hcf = hcf,
                 label_id=label_id,
+                data_id = 0
             )
         )
     return features
@@ -389,7 +390,6 @@ def get_appropriate_dataset(data, tokenizer, parition, mosi=False):
         features = convert_humor_to_features(data, tokenizer)
 
 
-    features = convert_humor_to_features(data, tokenizer)
     all_input_ids = torch.tensor([f.input_ids for f in features], dtype=torch.long)
     all_input_mask = torch.tensor([f.input_mask for f in features], dtype=torch.long)
     all_segment_ids = torch.tensor([f.segment_ids for f in features], dtype=torch.long)
@@ -441,7 +441,7 @@ def set_up_data_loader():
     train_dataset = get_appropriate_dataset(train_data, tokenizer, "train",mosi)
     dev_dataset = get_appropriate_dataset(dev_data, tokenizer, "dev",mosi)
     test_dataset = get_appropriate_dataset(test_data, tokenizer, "test",mosi)
-    
+
     train_dataloader = DataLoader(
         train_dataset, batch_size=args.batch_size, shuffle=True, num_workers=1
     )
