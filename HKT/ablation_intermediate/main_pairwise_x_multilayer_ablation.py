@@ -353,9 +353,9 @@ def prepare_bert_input(tokens, visual, acoustic, tokenizer):
     tokens = [CLS] + tokens + [SEP]
 
     # Pad zero vectors for acoustic / visual vectors to account for [CLS] / [SEP] tokens
-    acoustic_zero = np.zeros((1, ACOUSTIC_DIM))
+    acoustic_zero = np.zeros((1, ACOUSTIC_DIM_ALL))
     acoustic = np.concatenate((acoustic_zero, acoustic, acoustic_zero))
-    visual_zero = np.zeros((1, VISUAL_DIM))
+    visual_zero = np.zeros((1, VISUAL_DIM_ALL))
     visual = np.concatenate((visual_zero, visual, visual_zero))
 
     input_ids = tokenizer.convert_tokens_to_ids(tokens)
@@ -364,10 +364,10 @@ def prepare_bert_input(tokens, visual, acoustic, tokenizer):
 
     pad_length = args.max_seq_length - len(input_ids)
 
-    acoustic_padding = np.zeros((pad_length, ACOUSTIC_DIM))
+    acoustic_padding = np.zeros((pad_length, ACOUSTIC_DIM_ALL))
     acoustic = np.concatenate((acoustic, acoustic_padding))
 
-    visual_padding = np.zeros((pad_length, VISUAL_DIM))
+    visual_padding = np.zeros((pad_length, VISUAL_DIM_ALL))
     visual = np.concatenate((visual, visual_padding))
 
     padding = [0] * pad_length
@@ -378,6 +378,7 @@ def prepare_bert_input(tokens, visual, acoustic, tokenizer):
     segment_ids += padding
 
     return input_ids, visual, acoustic, input_mask, segment_ids
+
 
 def get_tokenizer(model):
     # if model == "bert-base-uncased":
