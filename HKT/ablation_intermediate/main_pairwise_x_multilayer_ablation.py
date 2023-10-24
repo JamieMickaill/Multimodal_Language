@@ -1023,7 +1023,7 @@ def prep_for_training(num_training_steps):
         elif args.include_c3=="n":
             model = HKT_no_c3(text_model, visual_model, acoustic_model,hcf_model, args)
         elif args.dataset=="mosi":
-            model = HKT_regression(text_model, visual_model, acoustic_model,hcf_model, args)
+            model = HKT_regression(text_model, visual_model, acoustic_model, args)
         else:
 
             model = HKT(text_model, visual_model, acoustic_model,hcf_model, args)
