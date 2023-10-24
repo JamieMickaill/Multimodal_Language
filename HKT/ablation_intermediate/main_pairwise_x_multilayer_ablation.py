@@ -1054,7 +1054,7 @@ def prep_for_training(num_training_steps):
             optimizers=[optimizer_o,optimizer_v,optimizer_a,optimizer_t]
             schedulers=[scheduler_o,scheduler_v,scheduler_a,scheduler_t]
 
-        if args.include_v == "n":
+        elif args.include_v == "n":
             acoustic_params,text_params,hcf_params,other_params = model.get_params()
             optimizer_o,scheduler_o=get_optimizer_scheduler(other_params,num_training_steps,learning_rate=args.learning_rate)
             optimizer_h,scheduler_h=get_optimizer_scheduler(hcf_params,num_training_steps,learning_rate=args.learning_rate_h)
