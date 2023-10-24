@@ -817,16 +817,19 @@ def train(
                 epoch_i, train_loss, valid_loss
             )
         )
-
         if regression==True:
             acc, mae, corr, f_score, test_loss, featureList = test_score_model_reg(
                 model, test_dataloader, loss_fct, regression=regression
             )
             if(best_test_acc <= acc):
                 best_test_acc= acc
+                best_valid_test_fscore = f_score
+                
             if(best_test_mae >= mae):
                 best_valid_loss = valid_loss
                 best_test_mae = mae
+                best_valid_corr = corr
+                
 
                 
                 
@@ -844,9 +847,13 @@ def train(
                         "test_loss": test_loss,
                         "best_valid_loss": best_valid_loss,
                         "best_test_mae": best_test_mae,
-                        "best_test_acc": best_test_acc
+                        "best_test_acc": best_test_acc,
+                        "best_valid_fscore": best_valid_test_fscore,
+                        "best_valid_corr": best_valid_corr
+
                     }
                 )
+
 
         else:
             test_accuracy, test_f_score, test_loss, predDict,classification_report,confusion_matrix,featureDict = test_score_model(

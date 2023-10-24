@@ -812,6 +812,7 @@ def train(
        
     best_valid_test_accuracy = 0
     best_valid_test_fscore = 0
+    best_valid_corr = 0
     best_valid_loss = 9e+9
     best_test_mae = 9e+9
     best_test_acc = 0
@@ -843,9 +844,13 @@ def train(
             )
             if(best_test_acc <= acc):
                 best_test_acc= acc
+                best_valid_test_fscore = f_score
+                
             if(best_test_mae >= mae):
                 best_valid_loss = valid_loss
                 best_test_mae = mae
+                best_valid_corr = corr
+                
 
                 
                 
@@ -863,7 +868,10 @@ def train(
                         "test_loss": test_loss,
                         "best_valid_loss": best_valid_loss,
                         "best_test_mae": best_test_mae,
-                        "best_test_acc": best_test_acc
+                        "best_test_acc": best_test_acc,
+                        "best_valid_fscore": best_valid_test_fscore,
+                        "best_valid_corr": best_valid_corr
+
                     }
                 )
 
