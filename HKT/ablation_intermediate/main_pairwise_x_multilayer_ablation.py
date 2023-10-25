@@ -777,7 +777,7 @@ def test_score_model_reg(model, test_data_loader, loss_fct, exclude_zero=False, 
         cr1 = classification_report(y_testNN, predictNN, target_names=['class_0', 'class_1'])
         
         # Confusion Matrix
-        conf_matrix1 = confusion_matrix(y_test, predictions)
+        conf_matrix1 = confusion_matrix(y_testNN, predictNN)
 
         #pos vs neg class split
         non_zeros = np.array(
