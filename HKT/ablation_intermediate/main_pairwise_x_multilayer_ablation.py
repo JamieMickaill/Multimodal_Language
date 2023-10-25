@@ -907,13 +907,14 @@ def train(
             accNN, acc2, mult_a7, mae, corr, f_score_nn, f_score2, test_loss, featureList,cr1,cr2,conf_matrix1,conf_matrix2,performanceDict = test_score_model_reg(
                 model, test_dataloader, loss_fct, regression=regression
             )
-            print(cr1)
-            print(conf_matrix1)
-            print(cr2)
-            print(conf_matrix2)
+
 
                 
             if(best_test_mae >= mae):
+                print(cr1)
+                print(conf_matrix1)
+                print(cr2)
+                print(conf_matrix2)
                 best_valid_loss = valid_loss
                 best_test_mae = mae
                 best_valid_corr = corr

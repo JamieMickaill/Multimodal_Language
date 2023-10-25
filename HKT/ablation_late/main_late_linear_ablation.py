@@ -890,10 +890,7 @@ def train(
             accNN, acc2, mult_a7, mae, corr, f_score_nn, f_score2, test_loss, featureList,cr1,cr2,conf_matrix1,conf_matrix2,performanceDict = test_score_model_reg(
                 model, test_dataloader, loss_fct, regression=regression
             )
-            print(cr1)
-            print(conf_matrix1)
-            print(cr2)
-            print(conf_matrix2)
+
 
                 
             if(best_test_mae >= mae):
@@ -905,6 +902,10 @@ def train(
                 best_test_acc7 = mult_a7
                 best_valid_test_fscore_a = f_score2
                 best_valid_test_fscore_b = f_score_nn
+                print(cr1)
+                print(conf_matrix1)
+                print(cr2)
+                print(conf_matrix2)
 
                 if(args.save_preds == "True"):
                     with open(f'performanceDict{wandb.run.id}.json', 'w') as fp:
