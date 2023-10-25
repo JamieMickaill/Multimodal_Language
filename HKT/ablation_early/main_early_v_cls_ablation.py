@@ -714,66 +714,108 @@ def test_score_model_reg(model, test_data_loader, loss_fct, exclude_zero=False, 
         # Save features to disk or do further processing
         featureList = [x for x in zip(y_test,all_features)]
 
-        non_zeros = np.array(
-            [i for i, e in enumerate(y_test) if e != 0 or use_zero])
-
-        # print("Before filtering - predictions:", len(predictions))
-        # print("Before filtering - y_test:", len(y_test))
-        predictions = predictions[non_zeros]
-        y_test = y_test[non_zeros]
-        # print("filtering - predictions:", len(predictions))
-        # print(" filtering - y_test:", len(y_test))
-        mae = np.mean(np.absolute(predictions - y_test))
-        corr = np.corrcoef(predictions, y_test)[0][1]
-
-        predictions = predictions >= 0
-        y_test = y_test >= 0
-
-        f_score = f1_score(y_test, predictions, average="weighted")
-        acc = accuracy_score(y_test, predictions)
-        # Classification Report
-        cr = classification_report(y_test, predictions, target_names=['class_0', 'class_1'])
-        
-        # Confusion Matrix
-        conf_matrix = confusion_matrix(y_test, predictions)
 
         data = zip(data_ids,predictions,y_test)
         performanceDict = dict([(str(x), (int(y), int(z))) for x, y, z in data])
 
+        #MAE includes neutral
+        mae = np.mean(np.absolute(predictions - y_test))
+        corr = np.corrcoef(predictions, y_test)[0][1]
 
 
-        print("Mean Absolute Error:", mae, " Acc: ", acc, " cor: ",corr," f_score: ",f_score)
-        return acc, mae, corr, f_score, test_loss, featureList,cr,conf_matrix,performanceDict
+        #non neg vs neg class split
+        predictNN = predictions >= 0
+        y_testNN = y_test >= 0
+
+        test_preds_a7 = np.clip(predictions, a_min=-3., a_max=3.)
+        test_truth_a7 = np.clip(y_test, a_min=-3., a_max=3.)
+        mult_a7 = np.sum(np.round(test_preds_a7) == np.round(test_truth_a7)) / float(len(test_truth_a7))
+
+        f_score_nn = f1_score(y_testNN, predictNN, average="weighted")
+        accNN = accuracy_score(y_testNN, predictNN)
+
+        # Classification Report
+        cr1 = classification_report(y_test, predictions, target_names=['class_0', 'class_1'])
+        
+        # Confusion Matrix
+        conf_matrix1 = confusion_matrix(y_test, predictions)
+
+        #pos vs neg class split
+        non_zeros = np.array(
+            [i for i, e in enumerate(y_test) if e != 0 or use_zero])
+
+        predictions = predictions[non_zeros]
+        y_test = y_test[non_zeros]
+
+        predict2 = predictions >= 0
+        y_test2 = y_test >= 0
+
+        f_score2 = f1_score(y_testNN, predictNN, average="weighted")
+        acc2 = accuracy_score(y_testNN, predictNN)
+
+        # Classification Report
+        cr2 = classification_report(y_test2, predict2, target_names=['class_0', 'class_1'])
+        
+        # Confusion Matrix
+        conf_matrix2 = confusion_matrix(y_test2, predict2)
+
+
+        print("Mean Absolute Error:", mae, " AccNN: ", accNN, " Acc2 ", acc2, " Acc7 ", mult_a7,  " cor: ",corr," f_scoreNN: ",f_score_nn, " f_score2 ", f_score2)
+        return accNN, acc2, mult_a7, mae, corr, f_score_nn, f_score2, test_loss, featureList,cr1,cr2,conf_matrix1,conf_matrix2,performanceDict
 
     else:
         predictions, y_test, test_loss,data_ids = test_epoch(model, test_data_loader, loss_fct, regression,save_features=False)
     
 
 
+        data = zip(data_ids,predictions,y_test)
+        performanceDict = dict([(str(x), (int(y), int(z))) for x, y, z in data])
+
+        #MAE includes neutral
+        mae = np.mean(np.absolute(predictions - y_test))
+        corr = np.corrcoef(predictions, y_test)[0][1]
+
+
+        #non neg vs neg class split
+        predictNN = predictions >= 0
+        y_testNN = y_test >= 0
+
+        test_preds_a7 = np.clip(predictions, a_min=-3., a_max=3.)
+        test_truth_a7 = np.clip(y_test, a_min=-3., a_max=3.)
+        mult_a7 = np.sum(np.round(test_preds_a7) == np.round(test_truth_a7)) / float(len(test_truth_a7))
+
+        f_score_nn = f1_score(y_testNN, predictNN, average="weighted")
+        accNN = accuracy_score(y_testNN, predictNN)
+
+        # Classification Report
+        cr1 = classification_report(y_test, predictions, target_names=['class_0', 'class_1'])
+        
+        # Confusion Matrix
+        conf_matrix1 = confusion_matrix(y_test, predictions)
+
+        #pos vs neg class split
         non_zeros = np.array(
             [i for i, e in enumerate(y_test) if e != 0 or use_zero])
 
         predictions = predictions[non_zeros]
         y_test = y_test[non_zeros]
 
-        mae = np.mean(np.absolute(predictions - y_test))
-        corr = np.corrcoef(predictions, y_test)[0][1]
+        predict2 = predictions >= 0
+        y_test2 = y_test >= 0
 
-        predictions = predictions >= 0
-        y_test = y_test >= 0
+        f_score2 = f1_score(y_testNN, predictNN, average="weighted")
+        acc2 = accuracy_score(y_testNN, predictNN)
 
-        f_score = f1_score(y_test, predictions, average="weighted")
-        acc = accuracy_score(y_test, predictions)
-        data = zip(data_ids,predictions,y_test)
-        performanceDict = dict([(str(x), (int(y), int(z))) for x, y, z in data])
         # Classification Report
-        cr = classification_report(y_test, predictions, target_names=['class_0', 'class_1'])
+        cr2 = classification_report(y_test2, predict2, target_names=['class_0', 'class_1'])
         
         # Confusion Matrix
-        conf_matrix = confusion_matrix(y_test, predictions)
+        conf_matrix2 = confusion_matrix(y_test2, predict2)
 
-        print("Mean Absolute Error:", mae, " Acc: ", acc, " cor: ",corr," f_score: ",f_score)
-        return acc, mae, corr, f_score, test_loss,cr,conf_matrix,performanceDict
+
+        print("Mean Absolute Error:", mae, " AccNN: ", accNN, " Acc2 ", acc2, " Acc7 ", mult_a7,  " cor: ",corr," f_scoreNN: ",f_score_nn, " f_score2 ", f_score2)
+        return accNN, acc2, mult_a7, mae, corr, f_score_nn, f_score2, test_loss,cr1,cr2,conf_matrix1,conf_matrix2,performanceDict
+
 
 
 
@@ -793,9 +835,16 @@ def train(
     best_valid_corr = 0
     best_valid_loss = 9e+9
     best_test_mae = 9e+9
-    best_test_acc = 0
+    best_valid_corr = 0
+    best_test_acc2a = 0
+    best_test_acc2b = 0
+    best_test_acc7 = 0
+    best_valid_test_fscore_a = 0
+    best_valid_test_fscore_b = 0
     run_name = str(wandb.run.id)
     valid_losses = []
+
+
     
     n_epochs=args.epochs
     patience = 5  # Define your patience value here
@@ -817,20 +866,24 @@ def train(
         )
 
         if regression==True:
-            acc, mae, corr, f_score, test_loss, featureList,cr,conf_matrix,performanceDict = test_score_model_reg(
+            accNN, acc2, mult_a7, mae, corr, f_score_nn, f_score2, test_loss, featureList,cr1,cr2,conf_matrix1,conf_matrix2,performanceDict = test_score_model_reg(
                 model, test_dataloader, loss_fct, regression=regression
             )
-            print(cr)
-            print(conf_matrix)
+            print(cr1)
+            print(conf_matrix1)
+            print(cr2)
+            print(conf_matrix2)
 
-            if(best_test_acc <= acc):
-                best_test_acc= acc
-                best_valid_test_fscore = f_score
                 
             if(best_test_mae >= mae):
                 best_valid_loss = valid_loss
                 best_test_mae = mae
                 best_valid_corr = corr
+                best_test_acc2a = acc2
+                best_test_acc2b = accNN
+                best_test_acc7 = mult_a7
+                best_valid_test_fscore_a = f_score2
+                best_valid_test_fscore_b = f_score_nn
 
                 if(args.save_preds == "True"):
                     with open(f'performanceDict{wandb.run.id}.json', 'w') as fp:
@@ -854,9 +907,12 @@ def train(
                         "test_loss": test_loss,
                         "best_valid_loss": best_valid_loss,
                         "best_test_mae": best_test_mae,
-                        "best_test_acc": best_test_acc,
-                        "best_valid_fscore": best_valid_test_fscore,
-                        "best_valid_corr": best_valid_corr
+                        "best_test_acc2a": best_test_acc2a,
+                        "best_test_acc2b": best_test_acc2b,
+                        "best_test_acc7": best_test_acc7,
+                        "best_valid_test_fscore_a": best_valid_test_fscore_a,
+                        "best_valid_test_fscore_b": best_valid_test_fscore_b,
+                        "best_valid_test_corr": best_valid_corr
 
                     }
                 )

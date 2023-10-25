@@ -80,7 +80,7 @@ args = parser.parse_args()
 class InputFeatures(object):
     """A single set of features of data."""
 
-    def __init__(self, input_ids, input_mask, segment_ids, visual, acoustic,hcf,label_id):
+    def __init__(self, input_ids, input_mask, segment_ids, visual, acoustic,hcf,label_id,data_id):
         self.input_ids = input_ids
         self.input_mask = input_mask
         self.segment_ids = segment_ids
@@ -88,6 +88,7 @@ class InputFeatures(object):
         self.acoustic = acoustic
         self.hcf = hcf
         self.label_id = label_id
+        self.data_id = data_id
 
 def _truncate_seq_pair(tokens_a, tokens_b, max_length):
     """Truncates a sequence pair in place to the maximum length."""
