@@ -422,6 +422,137 @@ class HKT_regression(nn.Module):
         return (out, all_features_embedding[:,0,:])
 
 
+class HKT_regression_no_V(nn.Module):
+    def __init__(self, text_model, visual_model, acoustic_model, args, dropout=0.1, fusion_dim=128):
+        super(HKT_regression, self).__init__()
+        
+        # self.seq_len = args.max_seq_length
+        self.d_model = (LANGUAGE_DIM+ACOUSTIC_DIM)
+        self.pos_encoder = nn.Embedding(args.max_seq_length, self.d_model)
+        self.norm = nn.LayerNorm(self.d_model)
+
+        self.newly_added_config=args
+        self.text_model = text_model
+
+
+        #concat vertical
+        shared_layer = TransformerLayer(self.d_model, nhead=args.cross_n_heads, dropout=args.dropout)
+        self.shared_transformer = TransformerEncoder(shared_layer, num_layers=args.cross_n_layers)
+        
+
+        self.fc = nn.Sequential(nn.Linear(self.d_model, args.fusion_dim), 
+                                       nn.ReLU(), 
+                                       nn.Dropout(args.dropout), 
+                                       nn.Linear(args.fusion_dim, 1))
+        
+
+    #returns separate params for shared cross-modal encoder and text-encoder
+    def get_params(self):
+
+        text_params = list(self.text_model.named_parameters())
+        
+        other_params=list(self.shared_transformer.named_parameters())+list(self.fc.named_parameters())  +list(self.pos_encoder.named_parameters()) +list(self.norm.named_parameters())
+        
+        return text_params,other_params
+    
+
+    def forward(self, input_ids, visual, acoustic, hcf, attention_mask=None, token_type_ids=None):
+
+        hcf = hcf
+        visual = visual
+        # Pass through the model to get BERT embeddings
+        # with torch.no_grad():  # To disable gradient calculations during inference
+        t_tokens = self.text_model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)[2]
+            
+            
+        #concat vertically
+        all_features_comb = torch.cat((t_tokens, acoustic), dim=2)
+
+        #add positional embeddings
+        seq_length = all_features_comb.size()[1]
+        position_ids = torch.arange(seq_length, dtype=torch.long, device=all_features_comb.device)
+        positions_embedding = self.pos_encoder(position_ids).unsqueeze(0).expand(all_features_comb.size()) # (seq_length, d_model) => (batch_size, seq_length, d_model)
+        all_features_comb = all_features_comb + positions_embedding
+
+        #norm before self-attn
+        input = self.norm(all_features_comb)
+        
+        #self-attn over combined seq
+        all_features_embedding = self.shared_transformer(input)
+
+        #CLS token -> FC layer with activation and dropout
+        out = self.fc(all_features_embedding[:,0,:])
+
+
+        return (out, all_features_embedding[:,0,:])
+
+
+class HKT_regression_no_A(nn.Module):
+    def __init__(self, text_model, visual_model, acoustic_model, args, dropout=0.1, fusion_dim=128):
+        super(HKT_regression, self).__init__()
+        
+        # self.seq_len = args.max_seq_length
+        self.d_model = (LANGUAGE_DIM+VISUAL_DIM)
+        self.pos_encoder = nn.Embedding(args.max_seq_length, self.d_model)
+        self.norm = nn.LayerNorm(self.d_model)
+
+        self.newly_added_config=args
+        self.text_model = text_model
+
+
+        #concat vertical
+        shared_layer = TransformerLayer(self.d_model, nhead=args.cross_n_heads, dropout=args.dropout)
+        self.shared_transformer = TransformerEncoder(shared_layer, num_layers=args.cross_n_layers)
+        
+
+        self.fc = nn.Sequential(nn.Linear(self.d_model, args.fusion_dim), 
+                                       nn.ReLU(), 
+                                       nn.Dropout(args.dropout), 
+                                       nn.Linear(args.fusion_dim, 1))
+        
+
+    #returns separate params for shared cross-modal encoder and text-encoder
+    def get_params(self):
+
+        text_params = list(self.text_model.named_parameters())
+        
+        other_params=list(self.shared_transformer.named_parameters())+list(self.fc.named_parameters())  +list(self.pos_encoder.named_parameters()) +list(self.norm.named_parameters())
+        
+        return text_params,other_params
+    
+
+    def forward(self, input_ids, visual, acoustic, hcf, attention_mask=None, token_type_ids=None):
+
+        hcf = hcf
+        acoustic= acoustic
+        # Pass through the model to get BERT embeddings
+        # with torch.no_grad():  # To disable gradient calculations during inference
+        t_tokens = self.text_model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)[2]
+            
+            
+        #concat vertically
+        all_features_comb = torch.cat((t_tokens, visual), dim=2)
+
+        #add positional embeddings
+        seq_length = all_features_comb.size()[1]
+        position_ids = torch.arange(seq_length, dtype=torch.long, device=all_features_comb.device)
+        positions_embedding = self.pos_encoder(position_ids).unsqueeze(0).expand(all_features_comb.size()) # (seq_length, d_model) => (batch_size, seq_length, d_model)
+        all_features_comb = all_features_comb + positions_embedding
+
+        #norm before self-attn
+        input = self.norm(all_features_comb)
+        
+        #self-attn over combined seq
+        all_features_embedding = self.shared_transformer(input)
+
+        #CLS token -> FC layer with activation and dropout
+        out = self.fc(all_features_embedding[:,0,:])
+
+
+        return (out, all_features_embedding[:,0,:])
+
+
+
 
 #early fusion no unimodal encoders
 class HKT_no_A(nn.Module):

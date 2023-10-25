@@ -989,11 +989,18 @@ def prep_for_training(num_training_steps):
             text_model = BertTextEncoderRegressionHead(language='en', use_finetune=True)
         else:
             text_model = AlbertModel.from_pretrained('albert-base-v2')
+
         if args.include_v=="n":
-            model = HKT_no_V(text_model, visual_model, acoustic_model,hcf_model, args)
+            if args.dataset=="mosi":
+                model = HKT_regression_no_V(text_model, visual_model, acoustic_model, args)
+            else:
+                model = HKT_no_V(text_model, visual_model, acoustic_model,hcf_model, args)
 
         elif args.include_a=="n":
-            model = HKT_no_A(text_model, visual_model, acoustic_model,hcf_model, args)
+            if args.dataset=="mosi":
+                model = HKT_regression_no_A(text_model, visual_model, acoustic_model, args)
+            else:
+                model = HKT_no_A(text_model, visual_model, acoustic_model,hcf_model, args)
 
         elif args.include_t=="n":
             model = HKT_no_T(text_model, visual_model, acoustic_model,hcf_model, args)

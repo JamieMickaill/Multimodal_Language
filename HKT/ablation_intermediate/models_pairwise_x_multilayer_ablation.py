@@ -444,6 +444,384 @@ class HKT_regression(nn.Module):
         
         return (out, fused_hidden)
 
+
+
+
+class HKT_regression_no_A(nn.Module):
+    def __init__(self, text_model, visual_model, acoustic_model, args, dropout=0.1, fusion_dim=128):
+        super(HKT_regression, self).__init__()
+        
+        self.newly_added_config=args
+        self.text_model = text_model
+        self.visual_model = visual_model
+        self.acoustic_model = acoustic_model
+        
+
+
+        # text_audio_cross_attention_layer = CrossAttentionLayer(LANGUAGE_DIM, ACOUSTIC_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        # self.text_audio_cross_attention = CrossAttentionEncoder(text_audio_cross_attention_layer,args.cross_n_layers)
+        text_visual_cross_attention_layer = CrossAttentionLayer(LANGUAGE_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        self.text_visual_cross_attention = CrossAttentionEncoder(text_visual_cross_attention_layer,args.cross_n_layers)
+        # audio_visual_cross_attention_layer = CrossAttentionLayer(ACOUSTIC_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        # self.audio_visual_cross_attention = CrossAttentionEncoder(audio_visual_cross_attention_layer,args.cross_n_layers)
+        
+        #total dim is VA, V(TH), A(TH), V,A,T,H
+        total_dim =  2*(LANGUAGE_DIM) + 2*(VISUAL_DIM)  
+
+        self.fusion_fc = nn.Sequential(nn.Linear(total_dim, args.fusion_dim), 
+                                       nn.ReLU(), 
+                                       nn.Dropout(args.dropout), 
+                                       nn.Linear(args.fusion_dim, 1))
+
+    #returns separate params for shared cross-modal encoder and text-encoder
+    def get_params(self):
+        
+        # acoustic_params=list(self.acoustic_model.named_parameters())
+        visual_params=list(self.visual_model.named_parameters())
+        text_params = list(self.text_model.named_parameters())
+        
+        other_params=list(self.text_visual_cross_attention.named_parameters())+list(self.fusion_fc.named_parameters())
+        
+        return visual_params,text_params,other_params
+    
+    def forward(self, input_ids, visual, acoustic, hcf, attention_mask=None, token_type_ids=None):
+
+        hcf = hcf
+        acoustic= acoustic
+        text_output = self.text_model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)[2]
+
+        
+        (_, _, visual_output) = self.visual_model(visual)
+        # (_, _, acoustic_output) = self.acoustic_model(acoustic)
+        
+        
+        
+        # attention mask conversion
+        extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
+        extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
+        extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
+        
+        # text_audio_comb = self.text_audio_cross_attention(text_output, acoustic_output, attention_mask=extended_attention_mask)
+        text_visual_comb = self.text_visual_cross_attention(text_output, visual_output, attention_mask=extended_attention_mask)
+        # audio_visual_comb = self.audio_visual_cross_attention(acoustic_output, visual_output, attention_mask=extended_attention_mask)
+
+        # Extract embeddings
+        text_embedding = text_output[:,0,:] # [CLS] token
+        visual_embedding = F.max_pool1d(visual_output.permute(0,2,1).contiguous(), visual_output.shape[1]).squeeze(-1)
+        # acoustic_embedding = F.max_pool1d(acoustic_output.permute(0,2,1).contiguous(),acoustic_output.shape[1]).squeeze(-1)
+        
+        # text_audio_embedding = F.max_pool1d(text_audio_comb.permute(0,2,1).contiguous(), text_audio_comb.shape[1]).squeeze(-1) 
+        text_visual_embedding = F.max_pool1d(text_visual_comb.permute(0,2,1).contiguous(),text_visual_comb.shape[1]).squeeze(-1)
+        # audio_visual_embedding = F.max_pool1d(audio_visual_comb.permute(0,2,1).contiguous(),audio_visual_comb.shape[1]).squeeze(-1)
+        
+        fusion = (text_embedding, visual_embedding,text_visual_embedding)
+        fused_hidden = torch.cat(fusion, dim=1)
+        
+        out = self.fusion_fc(fused_hidden)
+        
+        return (out, fused_hidden)
+
+
+class HKT_regression_no_V(nn.Module):
+    def __init__(self, text_model, visual_model, acoustic_model, args, dropout=0.1, fusion_dim=128):
+        super(HKT_regression, self).__init__()
+        
+        self.newly_added_config=args
+        self.text_model = text_model
+        self.visual_model = visual_model
+        self.acoustic_model = acoustic_model
+        
+
+        text_audio_cross_attention_layer = CrossAttentionLayer(LANGUAGE_DIM, ACOUSTIC_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        self.text_audio_cross_attention = CrossAttentionEncoder(text_audio_cross_attention_layer,args.cross_n_layers)
+        # text_visual_cross_attention_layer = CrossAttentionLayer(LANGUAGE_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        # self.text_visual_cross_attention = CrossAttentionEncoder(text_visual_cross_attention_layer,args.cross_n_layers)
+        # audio_visual_cross_attention_layer = CrossAttentionLayer(ACOUSTIC_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        # self.audio_visual_cross_attention = CrossAttentionEncoder(audio_visual_cross_attention_layer,args.cross_n_layers)
+        
+        #total dim is VA, V(TH), A(TH), V,A,T,H
+        total_dim =  2*(LANGUAGE_DIM) +  2*(ACOUSTIC_DIM) 
+
+        self.fusion_fc = nn.Sequential(nn.Linear(total_dim, args.fusion_dim), 
+                                       nn.ReLU(), 
+                                       nn.Dropout(args.dropout), 
+                                       nn.Linear(args.fusion_dim, 1))
+
+    #returns separate params for shared cross-modal encoder and text-encoder
+    def get_params(self):
+        
+        acoustic_params=list(self.acoustic_model.named_parameters())
+        # visual_params=list(self.visual_model.named_parameters())
+        text_params = list(self.text_model.named_parameters())
+        
+        other_params=list(self.text_audio_cross_attention.named_parameters())+list(self.fusion_fc.named_parameters())
+        
+        return acoustic_params,text_params,other_params
+    
+    def forward(self, input_ids, visual, acoustic, hcf, attention_mask=None, token_type_ids=None):
+
+        hcf = hcf
+        visual = visual
+        text_output = self.text_model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)[2]
+
+        
+        # (_, _, visual_output) = self.visual_model(visual)
+        (_, _, acoustic_output) = self.acoustic_model(acoustic)
+        
+        
+        
+        # attention mask conversion
+        extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
+        extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
+        extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
+        
+        text_audio_comb = self.text_audio_cross_attention(text_output, acoustic_output, attention_mask=extended_attention_mask)
+        # text_visual_comb = self.text_visual_cross_attention(text_output, visual_output, attention_mask=extended_attention_mask)
+        # audio_visual_comb = self.audio_visual_cross_attention(acoustic_output, visual_output, attention_mask=extended_attention_mask)
+
+        # Extract embeddings
+        text_embedding = text_output[:,0,:] # [CLS] token
+        # visual_embedding = F.max_pool1d(visual_output.permute(0,2,1).contiguous(), visual_output.shape[1]).squeeze(-1)
+        acoustic_embedding = F.max_pool1d(acoustic_output.permute(0,2,1).contiguous(),acoustic_output.shape[1]).squeeze(-1)
+        
+        text_audio_embedding = F.max_pool1d(text_audio_comb.permute(0,2,1).contiguous(), text_audio_comb.shape[1]).squeeze(-1) 
+        # text_visual_embedding = F.max_pool1d(text_visual_comb.permute(0,2,1).contiguous(),text_visual_comb.shape[1]).squeeze(-1)
+        # audio_visual_embedding = F.max_pool1d(audio_visual_comb.permute(0,2,1).contiguous(),audio_visual_comb.shape[1]).squeeze(-1)
+        
+        fusion = (text_embedding, acoustic_embedding,text_audio_embedding)
+        fused_hidden = torch.cat(fusion, dim=1)
+        
+        out = self.fusion_fc(fused_hidden)
+        
+        return (out, fused_hidden)
+
+
+
+class HKT_regression_no_c1(nn.Module):
+    def __init__(self, text_model, visual_model, acoustic_model, args, dropout=0.1, fusion_dim=128):
+        super(HKT_regression, self).__init__()
+        
+        self.newly_added_config=args
+        self.text_model = text_model
+        self.visual_model = visual_model
+        self.acoustic_model = acoustic_model
+        
+
+
+        # text_audio_cross_attention_layer = CrossAttentionLayer(LANGUAGE_DIM, ACOUSTIC_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        # self.text_audio_cross_attention = CrossAttentionEncoder(text_audio_cross_attention_layer,args.cross_n_layers)
+        text_visual_cross_attention_layer = CrossAttentionLayer(LANGUAGE_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        self.text_visual_cross_attention = CrossAttentionEncoder(text_visual_cross_attention_layer,args.cross_n_layers)
+        audio_visual_cross_attention_layer = CrossAttentionLayer(ACOUSTIC_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        self.audio_visual_cross_attention = CrossAttentionEncoder(audio_visual_cross_attention_layer,args.cross_n_layers)
+        
+        #total dim is VA, V(TH), A(TH), V,A,T,H
+        total_dim =  2*(LANGUAGE_DIM) + 3*(VISUAL_DIM) + 2*(ACOUSTIC_DIM) 
+
+        self.fusion_fc = nn.Sequential(nn.Linear(total_dim, args.fusion_dim), 
+                                       nn.ReLU(), 
+                                       nn.Dropout(args.dropout), 
+                                       nn.Linear(args.fusion_dim, 1))
+
+    #returns separate params for shared cross-modal encoder and text-encoder
+    def get_params(self):
+        
+        acoustic_params=list(self.acoustic_model.named_parameters())
+        visual_params=list(self.visual_model.named_parameters())
+        text_params = list(self.text_model.named_parameters())
+        
+        other_params=list(self.text_visual_cross_attention.named_parameters())+list(self.audio_visual_cross_attention.named_parameters())+list(self.fusion_fc.named_parameters())
+        
+        return acoustic_params,visual_params,text_params,other_params
+    
+    def forward(self, input_ids, visual, acoustic, hcf, attention_mask=None, token_type_ids=None):
+
+        hcf = hcf
+        text_output = self.text_model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)[2]
+
+        
+        (_, _, visual_output) = self.visual_model(visual)
+        (_, _, acoustic_output) = self.acoustic_model(acoustic)
+        
+        
+        
+        # attention mask conversion
+        extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
+        extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
+        extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
+        
+        # text_audio_comb = self.text_audio_cross_attention(text_output, acoustic_output, attention_mask=extended_attention_mask)
+        text_visual_comb = self.text_visual_cross_attention(text_output, visual_output, attention_mask=extended_attention_mask)
+        audio_visual_comb = self.audio_visual_cross_attention(acoustic_output, visual_output, attention_mask=extended_attention_mask)
+
+        # Extract embeddings
+        text_embedding = text_output[:,0,:] # [CLS] token
+        visual_embedding = F.max_pool1d(visual_output.permute(0,2,1).contiguous(), visual_output.shape[1]).squeeze(-1)
+        acoustic_embedding = F.max_pool1d(acoustic_output.permute(0,2,1).contiguous(),acoustic_output.shape[1]).squeeze(-1)
+        
+        # text_audio_embedding = F.max_pool1d(text_audio_comb.permute(0,2,1).contiguous(), text_audio_comb.shape[1]).squeeze(-1) 
+        text_visual_embedding = F.max_pool1d(text_visual_comb.permute(0,2,1).contiguous(),text_visual_comb.shape[1]).squeeze(-1)
+        audio_visual_embedding = F.max_pool1d(audio_visual_comb.permute(0,2,1).contiguous(),audio_visual_comb.shape[1]).squeeze(-1)
+        
+        fusion = (text_embedding, visual_embedding, acoustic_embedding,text_visual_embedding,audio_visual_embedding)
+        fused_hidden = torch.cat(fusion, dim=1)
+        
+        out = self.fusion_fc(fused_hidden)
+        
+        return (out, fused_hidden)
+
+
+
+
+class HKT_regression_no_c2(nn.Module):
+    def __init__(self, text_model, visual_model, acoustic_model, args, dropout=0.1, fusion_dim=128):
+        super(HKT_regression, self).__init__()
+        
+        self.newly_added_config=args
+        self.text_model = text_model
+        self.visual_model = visual_model
+        self.acoustic_model = acoustic_model
+        
+
+
+        text_audio_cross_attention_layer = CrossAttentionLayer(LANGUAGE_DIM, ACOUSTIC_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        self.text_audio_cross_attention = CrossAttentionEncoder(text_audio_cross_attention_layer,args.cross_n_layers)
+        # text_visual_cross_attention_layer = CrossAttentionLayer(LANGUAGE_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        # self.text_visual_cross_attention = CrossAttentionEncoder(text_visual_cross_attention_layer,args.cross_n_layers)
+        audio_visual_cross_attention_layer = CrossAttentionLayer(ACOUSTIC_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        self.audio_visual_cross_attention = CrossAttentionEncoder(audio_visual_cross_attention_layer,args.cross_n_layers)
+        
+        #total dim is VA, V(TH), A(TH), V,A,T,H
+        total_dim =  2*(LANGUAGE_DIM) + 2*(VISUAL_DIM) + 3*(ACOUSTIC_DIM) 
+
+        self.fusion_fc = nn.Sequential(nn.Linear(total_dim, args.fusion_dim), 
+                                       nn.ReLU(), 
+                                       nn.Dropout(args.dropout), 
+                                       nn.Linear(args.fusion_dim, 1))
+
+    #returns separate params for shared cross-modal encoder and text-encoder
+    def get_params(self):
+        
+        acoustic_params=list(self.acoustic_model.named_parameters())
+        visual_params=list(self.visual_model.named_parameters())
+        text_params = list(self.text_model.named_parameters())
+        
+        other_params=list(self.text_audio_cross_attention.named_parameters())+list(self.audio_visual_cross_attention.named_parameters())+list(self.fusion_fc.named_parameters())
+        
+        return acoustic_params,visual_params,text_params,other_params
+    
+    def forward(self, input_ids, visual, acoustic, hcf, attention_mask=None, token_type_ids=None):
+
+        hcf = hcf
+        text_output = self.text_model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)[2]
+
+        
+        (_, _, visual_output) = self.visual_model(visual)
+        (_, _, acoustic_output) = self.acoustic_model(acoustic)
+        
+        
+        
+        # attention mask conversion
+        extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
+        extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
+        extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
+        
+        text_audio_comb = self.text_audio_cross_attention(text_output, acoustic_output, attention_mask=extended_attention_mask)
+        text_visual_comb = self.text_visual_cross_attention(text_output, visual_output, attention_mask=extended_attention_mask)
+        audio_visual_comb = self.audio_visual_cross_attention(acoustic_output, visual_output, attention_mask=extended_attention_mask)
+
+        # Extract embeddings
+        text_embedding = text_output[:,0,:] # [CLS] token
+        visual_embedding = F.max_pool1d(visual_output.permute(0,2,1).contiguous(), visual_output.shape[1]).squeeze(-1)
+        acoustic_embedding = F.max_pool1d(acoustic_output.permute(0,2,1).contiguous(),acoustic_output.shape[1]).squeeze(-1)
+        
+        text_audio_embedding = F.max_pool1d(text_audio_comb.permute(0,2,1).contiguous(), text_audio_comb.shape[1]).squeeze(-1) 
+        # text_visual_embedding = F.max_pool1d(text_visual_comb.permute(0,2,1).contiguous(),text_visual_comb.shape[1]).squeeze(-1)
+        audio_visual_embedding = F.max_pool1d(audio_visual_comb.permute(0,2,1).contiguous(),audio_visual_comb.shape[1]).squeeze(-1)
+        
+        fusion = (text_embedding, visual_embedding, acoustic_embedding,text_audio_embedding,audio_visual_embedding)
+        fused_hidden = torch.cat(fusion, dim=1)
+        
+        out = self.fusion_fc(fused_hidden)
+        
+        return (out, fused_hidden)
+
+
+
+class HKT_regression_no_c3(nn.Module):
+    def __init__(self, text_model, visual_model, acoustic_model, args, dropout=0.1, fusion_dim=128):
+        super(HKT_regression, self).__init__()
+        
+        self.newly_added_config=args
+        self.text_model = text_model
+        self.visual_model = visual_model
+        self.acoustic_model = acoustic_model
+        
+
+
+        text_audio_cross_attention_layer = CrossAttentionLayer(LANGUAGE_DIM, ACOUSTIC_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        self.text_audio_cross_attention = CrossAttentionEncoder(text_audio_cross_attention_layer,args.cross_n_layers)
+        text_visual_cross_attention_layer = CrossAttentionLayer(LANGUAGE_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        self.text_visual_cross_attention = CrossAttentionEncoder(text_visual_cross_attention_layer,args.cross_n_layers)
+        # audio_visual_cross_attention_layer = CrossAttentionLayer(ACOUSTIC_DIM, VISUAL_DIM, nhead=args.cross_n_heads, dropout=args.dropout)
+        # self.audio_visual_cross_attention = CrossAttentionEncoder(audio_visual_cross_attention_layer,args.cross_n_layers)
+        
+        #total dim is VA, V(TH), A(TH), V,A,T,H
+        total_dim =  3*(LANGUAGE_DIM) + 2*(VISUAL_DIM) + 2*(ACOUSTIC_DIM) 
+
+        self.fusion_fc = nn.Sequential(nn.Linear(total_dim, args.fusion_dim), 
+                                       nn.ReLU(), 
+                                       nn.Dropout(args.dropout), 
+                                       nn.Linear(args.fusion_dim, 1))
+
+    #returns separate params for shared cross-modal encoder and text-encoder
+    def get_params(self):
+        
+        acoustic_params=list(self.acoustic_model.named_parameters())
+        visual_params=list(self.visual_model.named_parameters())
+        text_params = list(self.text_model.named_parameters())
+        
+        other_params=list(self.text_audio_cross_attention.named_parameters())+list(self.text_visual_cross_attention.named_parameters())+list(self.fusion_fc.named_parameters())
+        
+        return acoustic_params,visual_params,text_params,other_params
+    
+    def forward(self, input_ids, visual, acoustic, hcf, attention_mask=None, token_type_ids=None):
+
+        hcf = hcf
+        text_output = self.text_model(input_ids, attention_mask=attention_mask, token_type_ids=token_type_ids)[2]
+
+        
+        (_, _, visual_output) = self.visual_model(visual)
+        (_, _, acoustic_output) = self.acoustic_model(acoustic)
+        
+        
+        
+        # attention mask conversion
+        extended_attention_mask = attention_mask.unsqueeze(1).unsqueeze(2)
+        extended_attention_mask = extended_attention_mask.to(dtype=next(self.parameters()).dtype) # fp16 compatibility
+        extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
+        
+        text_audio_comb = self.text_audio_cross_attention(text_output, acoustic_output, attention_mask=extended_attention_mask)
+        text_visual_comb = self.text_visual_cross_attention(text_output, visual_output, attention_mask=extended_attention_mask)
+        # audio_visual_comb = self.audio_visual_cross_attention(acoustic_output, visual_output, attention_mask=extended_attention_mask)
+
+        # Extract embeddings
+        text_embedding = text_output[:,0,:] # [CLS] token
+        visual_embedding = F.max_pool1d(visual_output.permute(0,2,1).contiguous(), visual_output.shape[1]).squeeze(-1)
+        acoustic_embedding = F.max_pool1d(acoustic_output.permute(0,2,1).contiguous(),acoustic_output.shape[1]).squeeze(-1)
+        
+        text_audio_embedding = F.max_pool1d(text_audio_comb.permute(0,2,1).contiguous(), text_audio_comb.shape[1]).squeeze(-1) 
+        text_visual_embedding = F.max_pool1d(text_visual_comb.permute(0,2,1).contiguous(),text_visual_comb.shape[1]).squeeze(-1)
+        # audio_visual_embedding = F.max_pool1d(audio_visual_comb.permute(0,2,1).contiguous(),audio_visual_comb.shape[1]).squeeze(-1)
+        
+        fusion = (text_embedding, visual_embedding, acoustic_embedding,text_audio_embedding,text_visual_embedding)
+        fused_hidden = torch.cat(fusion, dim=1)
+        
+        out = self.fusion_fc(fused_hidden)
+        
+        return (out, fused_hidden)
+
+
 class HKT_no_c1(nn.Module):
     def __init__(self, text_model, visual_model, acoustic_model, hcf_model, args, dropout=0.1, fusion_dim=128):
         super(HKT_no_c1, self).__init__()
