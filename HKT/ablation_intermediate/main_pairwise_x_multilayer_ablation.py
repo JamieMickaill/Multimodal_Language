@@ -774,7 +774,7 @@ def test_score_model_reg(model, test_data_loader, loss_fct, exclude_zero=False, 
         accNN = accuracy_score(y_testNN, predictNN)
 
         # Classification Report
-        cr1 = classification_report(y_test, predictions, target_names=['class_0', 'class_1'])
+        cr1 = classification_report(y_testNN, predictNN, target_names=['class_0', 'class_1'])
         
         # Confusion Matrix
         conf_matrix1 = confusion_matrix(y_test, predictions)
