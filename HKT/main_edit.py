@@ -588,7 +588,7 @@ def train_epoch(model, train_dataloader, optimizer, scheduler, loss_fct, regress
                     input_ids,
                     token_type_ids=segment_ids,
                     attention_mask=input_mask,
-                    labels=None,
+                    
                 )
         elif args.model == "acoustic_only":
             outputs = model(
