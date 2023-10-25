@@ -1259,7 +1259,7 @@ def set_random_seed(seed):
 
 def main():
     
-    wandb.init(project="Fusion_Final_Extra", group="pairwise_x_ablation")
+    wandb.init(project="Fusion_Final_Extra_1", group="pairwise_x_ablation")
     wandb.config.update(args)
     
     if(args.seed == -1):
