@@ -583,14 +583,7 @@ def train_epoch(model, train_dataloader, optimizer, scheduler, loss_fct, regress
         acoustic = torch.squeeze(acoustic, 1)
 
         if args.model == "language_only":
-            if args.dataset=="mosi":
-                text = torch.tensor(np.concatenate((input_ids.cpu().numpy()[np.newaxis, :], 
-                   input_mask.cpu().numpy()[np.newaxis, :], 
-                   segment_ids.cpu().numpy()[np.newaxis, :]), axis=0)).to(DEVICE)
 
-
-                outputs = model(text.permute(1, 0, 2))
-            else:
                 outputs = model(
                     input_ids,
                     token_type_ids=segment_ids,
