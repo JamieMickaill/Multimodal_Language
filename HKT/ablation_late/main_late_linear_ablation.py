@@ -1112,7 +1112,7 @@ def prep_for_training(num_training_steps):
 
         if args.include_v == "n":
             if args.dataset == "mosi":
-                acoustic_params,visual_params,text_params,other_params = model.get_params()
+                acoustic_params,text_params,other_params = model.get_params()
                 optimizer_o,scheduler_o=get_optimizer_scheduler(other_params,num_training_steps,learning_rate=args.learning_rate)
                 # optimizer_h,scheduler_h=get_optimizer_scheduler(hcf_params,num_training_steps,learning_rate=args.learning_rate_h)
                 # optimizer_v,scheduler_v=get_optimizer_scheduler(visual_params,num_training_steps,learning_rate=args.learning_rate_v)
