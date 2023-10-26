@@ -1101,13 +1101,13 @@ def prep_for_training(num_training_steps):
             text_model = AlbertModel.from_pretrained('albert-base-v2')
         if args.include_v=="n":
             if args.dataset=="mosi":
-                model = HKT_regression_no_V(text_model, visual_model, acoustic_model,hcf_model, args)
+                model = HKT_regression_no_V(text_model, visual_model, acoustic_model, args)
             else:
                 model = HKT_no_v(text_model, visual_model, acoustic_model,hcf_model, args)
 
         elif args.include_a=="n":
             if args.dataset=="mosi":
-                model = HKT_regression_no_A(text_model, visual_model, acoustic_model,hcf_model, args)
+                model = HKT_regression_no_A(text_model, visual_model, acoustic_model, args)
             else:
                 model = HKT_no_a(text_model, visual_model, acoustic_model,hcf_model, args)
 
@@ -1118,19 +1118,19 @@ def prep_for_training(num_training_steps):
             model = HKT_no_h(text_model, visual_model, acoustic_model,hcf_model, args)
         elif args.include_c1=="n":
             if args.dataset=="mosi":
-                model = HKT_regression_no_c1(text_model, visual_model, acoustic_model,hcf_model, args)
+                model = HKT_regression_no_c1(text_model, visual_model, acoustic_model, args)
             else:
                 model = HKT_no_c1(text_model, visual_model, acoustic_model,hcf_model, args)
 
         elif args.include_c2=="n":
             if args.dataset=="mosi":
-                model = HKT_regression_no_c2(text_model, visual_model, acoustic_model,hcf_model, args)
+                model = HKT_regression_no_c2(text_model, visual_model, acoustic_model, args)
             else:
                 model = HKT_no_c2(text_model, visual_model, acoustic_model,hcf_model, args)
 
         elif args.include_c3=="n":
             if args.dataset=="mosi":
-                model = HKT_regression_no_c3(text_model, visual_model, acoustic_model,hcf_model, args)
+                model = HKT_regression_no_c3(text_model, visual_model, acoustic_model, args)
             else:
                 model = HKT_no_c3(text_model, visual_model, acoustic_model,hcf_model, args)
         elif args.dataset=="mosi":
