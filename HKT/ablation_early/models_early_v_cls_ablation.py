@@ -424,7 +424,7 @@ class HKT_regression(nn.Module):
 
 class HKT_regression_no_V(nn.Module):
     def __init__(self, text_model, visual_model, acoustic_model, args, dropout=0.1, fusion_dim=128):
-        super(HKT_regression, self).__init__()
+        super(HKT_regression_no_V, self).__init__()
         
         # self.seq_len = args.max_seq_length
         self.d_model = (LANGUAGE_DIM+ACOUSTIC_DIM)
@@ -489,7 +489,7 @@ class HKT_regression_no_V(nn.Module):
 
 class HKT_regression_no_A(nn.Module):
     def __init__(self, text_model, visual_model, acoustic_model, args, dropout=0.1, fusion_dim=128):
-        super(HKT_regression, self).__init__()
+        super(HKT_regression_no_A, self).__init__()
         
         # self.seq_len = args.max_seq_length
         self.d_model = (LANGUAGE_DIM+VISUAL_DIM)

@@ -449,7 +449,7 @@ class HKT_regression(nn.Module):
 
 class HKT_regression_no_A(nn.Module):
     def __init__(self, text_model, visual_model, acoustic_model, args, dropout=0.1, fusion_dim=128):
-        super(HKT_regression, self).__init__()
+        super(HKT_regression_no_A, self).__init__()
         
         self.newly_added_config=args
         self.text_model = text_model
@@ -524,7 +524,7 @@ class HKT_regression_no_A(nn.Module):
 
 class HKT_regression_no_V(nn.Module):
     def __init__(self, text_model, visual_model, acoustic_model, args, dropout=0.1, fusion_dim=128):
-        super(HKT_regression, self).__init__()
+        super(HKT_regression_no_V, self).__init__()
         
         self.newly_added_config=args
         self.text_model = text_model
@@ -599,7 +599,7 @@ class HKT_regression_no_V(nn.Module):
 
 class HKT_regression_no_c1(nn.Module):
     def __init__(self, text_model, visual_model, acoustic_model, args, dropout=0.1, fusion_dim=128):
-        super(HKT_regression, self).__init__()
+        super(HKT_regression_no_c1, self).__init__()
         
         self.newly_added_config=args
         self.text_model = text_model
@@ -675,7 +675,7 @@ class HKT_regression_no_c1(nn.Module):
 
 class HKT_regression_no_c2(nn.Module):
     def __init__(self, text_model, visual_model, acoustic_model, args, dropout=0.1, fusion_dim=128):
-        super(HKT_regression, self).__init__()
+        super(HKT_regression_no_c2, self).__init__()
         
         self.newly_added_config=args
         self.text_model = text_model
@@ -750,7 +750,7 @@ class HKT_regression_no_c2(nn.Module):
 
 class HKT_regression_no_c3(nn.Module):
     def __init__(self, text_model, visual_model, acoustic_model, args, dropout=0.1, fusion_dim=128):
-        super(HKT_regression, self).__init__()
+        super(HKT_regression_no_c3, self).__init__()
         
         self.newly_added_config=args
         self.text_model = text_model

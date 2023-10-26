@@ -72,7 +72,7 @@ parser.add_argument("--save_preds", type=str, choices=["True","False"], default=
 parser.add_argument("--seed", type=int, default=100)
 
 parser.add_argument("--learning_rate", type=float, default=0.000005)
-parser.add_argument("--learning_rate_t", type=float, default=0.000005)
+parser.add_argument("--learning_rate_t", type=float, default=0.00003)
 parser.add_argument("--learning_rate_a", type=float, default=0.003)
 parser.add_argument("--learning_rate_h", type=float, default=0.0003)
 parser.add_argument("--learning_rate_v", type=float, default=0.003)
