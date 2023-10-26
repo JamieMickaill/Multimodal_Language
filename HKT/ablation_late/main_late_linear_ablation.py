@@ -824,8 +824,8 @@ def test_score_model_reg(model, test_data_loader, loss_fct, exclude_zero=False, 
         predict2 = predictions >= 0
         y_test2 = y_test >= 0
 
-        f_score2 = f1_score(y_testNN, predictNN, average="weighted")
-        acc2 = accuracy_score(y_testNN, predictNN)
+        f_score2 = f1_score(y_test2, predict2, average="weighted")
+        acc2 = accuracy_score(y_test2, predict2)
 
         # Classification Report
         cr2 = classification_report(y_test2, predict2, target_names=['class_0', 'class_1'])
