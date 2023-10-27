@@ -727,7 +727,7 @@ class HKT_regression_no_c2(nn.Module):
         extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
         
         text_audio_comb = self.text_audio_cross_attention(text_output, acoustic_output, attention_mask=extended_attention_mask)
-        text_visual_comb = self.text_visual_cross_attention(text_output, visual_output, attention_mask=extended_attention_mask)
+        # text_visual_comb = self.text_visual_cross_attention(text_output, visual_output, attention_mask=extended_attention_mask)
         audio_visual_comb = self.audio_visual_cross_attention(acoustic_output, visual_output, attention_mask=extended_attention_mask)
 
         # Extract embeddings
