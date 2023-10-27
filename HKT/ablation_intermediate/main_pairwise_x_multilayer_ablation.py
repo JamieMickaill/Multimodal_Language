@@ -499,11 +499,11 @@ def train_epoch(model, train_dataloader, optimizer, scheduler, loss_fct,regressi
         elif args.model == "acoustic_only":
             outputs = model(
                 acoustic
-            )[0]
+            )
         elif args.model == "visual_only":
             outputs = model(
                 visual
-            )[0]
+            )
         elif args.model=="hcf_only":
             outputs=model(hcf)[0]
             
@@ -568,11 +568,11 @@ def eval_epoch(model, dev_dataloader, loss_fct):
             elif args.model == "acoustic_only":
                 outputs = model(
                     acoustic
-                )[0]
+                )
             elif args.model == "visual_only":
                 outputs = model(
                     visual
-                )[0]
+                )
             elif args.model=="hcf_only":
                 outputs=model(hcf)[0]
                 
@@ -631,13 +631,13 @@ def test_epoch(model, test_data_loader, loss_fct, regression = False, save_featu
                 outputs = model(
                     acoustic
                 )
-                logits = outputs[0][0]
+                logits = outputs[0]
 
             elif args.model == "visual_only":
                 outputs = model(
                     visual
                 )
-                logits = outputs[0][0]
+                logits = outputs[0]
             elif args.model=="hcf_only":
                 outputs=model(hcf)
                 logits = outputs[0][0]
