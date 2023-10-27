@@ -1031,17 +1031,23 @@ def prep_for_training(num_training_steps):
         if args.dataset=="humor":
             model = Transformer1(ACOUSTIC_DIM, num_layers=8, nhead=3, dim_feedforward = 256)
             model.load_state_dict(torch.load("./model_weights/init/humor/humorAcousticTransformer.pt"))
-        else:
+        elif args.dataset=="sarcasm":
             model = Transformer1(ACOUSTIC_DIM, num_layers=1, nhead=3, dim_feedforward=512)
             model.load_state_dict(torch.load("./model_weights/init/sarcasm/sarcasmAcousticTransformer.pt"))
+        else:
+            model = Transformer1(ACOUSTIC_DIM, num_layers=args.n_layers, nhead=args.n_heads, dim_feedforward=args.fc_dim)
+
             
     elif args.model == "visual_only":
         if args.dataset=="humor":
             model = Transformer1(VISUAL_DIM, num_layers=7, nhead=3, dim_feedforward= 128)
             model.load_state_dict(torch.load("./model_weights/init/humor/humorVisualTransformer.pt"))
-        else:
+        elif args.dataset=="sarcasm":
             model = Transformer1(VISUAL_DIM, num_layers=8, nhead=4, dim_feedforward=1024)
             model.load_state_dict(torch.load("./model_weights/init/sarcasm/sarcasmVisualTransformer.pt"))
+        else:
+            model = Transformer1(VISUAL_DIM, num_layers=args.n_layers, nhead=args.n_heads, dim_feedforward=args.fc_dim)
+
             
     elif args.model=="hcf_only":
         if args.dataset=="humor":
