@@ -900,7 +900,7 @@ def train(
                 if(args.save_preds == "True"):
                     with open(f'performanceDict{wandb.run.id}.json', 'w') as fp:
                         import json
-                        json.dump(performanceDict, fp)
+                        json.dump(performanceDict, fp, cls=NumpyEncoder)
                 
 
                 
@@ -909,7 +909,7 @@ def train(
                     torch.save(model.state_dict(),'./best_weights/'+run_name+'.pt')
 
                 with open(f"test_features_{wandb.run.id}.pkl", 'wb') as f:
-                    pickle.dump(featureList, f, cls=NumpyEncoder)        
+                    pickle.dump(featureList, f)        
 
                 #we report test_accuracy of the best valid loss (best_valid_test_accuracy)
                 wandb.log(
