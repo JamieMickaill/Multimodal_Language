@@ -831,7 +831,18 @@ def test_score_model_reg(model, test_data_loader, loss_fct, exclude_zero=False, 
         print("Mean Absolute Error:", mae, " AccNN: ", accNN, " Acc2 ", acc2, " Acc7 ", mult_a7,  " cor: ",corr," f_scoreNN: ",f_score_nn, " f_score2 ", f_score2)
         return accNN, acc2, mult_a7, mae, corr, f_score_nn, f_score2, test_loss,cr1,cr2,conf_matrix1,conf_matrix2,performanceDict
 
-
+import json
+class NumpyEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, (np.int_, np.intc, np.intp, np.int8,
+                            np.int16, np.int32, np.int64, np.uint8,
+                            np.uint16, np.uint32, np.uint64)):
+            return int(obj)
+        elif isinstance(obj, (np.float_, np.float16, np.float32, np.float64)):
+            return float(obj)
+        elif isinstance(obj, (np.ndarray,)):  # Handle numpy arrays
+            return obj.tolist()
+        return json.JSONEncoder.default(self, obj)
 
 def train(
     model,
@@ -903,7 +914,7 @@ def train(
                 if(args.save_preds == "True"):
                     with open(f'performanceDict{wandb.run.id}.json', 'w') as fp:
                         import json
-                        json.dump(performanceDict, fp)
+                        json.dump(performanceDict, fp, cls=NumpyEncoder)
                 
 
                 
