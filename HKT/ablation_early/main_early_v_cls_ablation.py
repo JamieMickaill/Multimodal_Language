@@ -335,7 +335,7 @@ def convert_to_features_mosi(examples, max_seq_length, tokenizer):
                 acoustic=acoustic,
                 hcf = hcf,
                 label_id=label_id,
-                data_id = 0
+                data_id = ex_index
             )
         )
     return features

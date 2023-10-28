@@ -335,7 +335,7 @@ def convert_to_features_mosi(examples, max_seq_length, tokenizer):
                 acoustic=acoustic,
                 hcf = hcf,
                 label_id=label_id,
-                data_id = 0
+                data_id = ex_index
             )
         )
     return features
@@ -693,6 +693,7 @@ def test_epoch(model, test_data_loader, loss_fct,regression = False, save_featur
         preds = np.squeeze(preds)
         all_labels = np.squeeze(all_labels)
         all_ids = np.squeeze(all_ids)
+        all_features = np.squeeze(all_features)
 
     if save_features:
         return preds, all_labels, eval_loss, all_ids, all_features
