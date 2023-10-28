@@ -340,7 +340,7 @@ def convert_to_features_mosi(examples, max_seq_length, tokenizer):
                 acoustic=acoustic,
                 hcf = hcf,
                 label_id=label_id,
-                data_id = segment
+                data_id = ex_index
             )
         )
     return features
@@ -731,7 +731,7 @@ def test_score_model_reg(model, test_data_loader, loss_fct, exclude_zero=False, 
 
 
         data = zip(data_ids,predictions,y_test)
-        performanceDict = dict([(str(x), (int(y), int(z))) for x, y, z in data])
+        performanceDict = dict([(str(x), (y, z)) for x, y, z in data])
 
         #MAE includes neutral
         mae = np.mean(np.absolute(predictions - y_test))
